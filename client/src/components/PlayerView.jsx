@@ -26,7 +26,7 @@ export default function PlayerView({
   const [currentTrack, setCurrentTrack] = useState(room.currentTrack);
   const [isPlaying, setIsPlaying] = useState(room.isPlaying);
   const [currentTime, setCurrentTime] = useState(room.currentTime || 0);
-  const [duration, setDuration] = useState(room.currentTrack?.duration || 256);
+  const [duration, setDuration] = useState(room.currentTrack?.duration || 0);
   const [volume, setVolume] = useState(85);
 
   // Queue & Chat state

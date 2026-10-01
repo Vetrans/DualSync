@@ -31,7 +31,7 @@ export default function MediaEngine({
         ytPlayerRef.current = new window.YT.Player(ytContainerId, {
           height: '240',
           width: '320',
-          videoId: currentTrack?.videoId || '7eou_bV6_Qo',
+          videoId: currentTrack?.videoId || '',
           playerVars: {
             autoplay: 0,
             controls: 0,
