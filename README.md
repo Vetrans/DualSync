@@ -1,16 +1,16 @@
-# 🎵 DualSync — Synchronized Listening & WebRTC Voice Rooms
+# DualSync - Synchronized Listening & WebRTC Voice Rooms
 
 DualSync is a responsive, real-time synchronized music and podcast co-listening web application built with Node.js, Express, Socket.io, React, and WebRTC. Inspired by Spotify's fullscreen interface, it allows paired users to listen together in locked synchrony with custom player controls, talk via real-time WebRTC 1-on-1 voice calls, share a live queue, and chat in private sanctuary rooms.
 
 ---
 
-## ✨ Features
+## Features
 
 - **Spotify Fullscreen UI**: Modeled after Spotify's desktop fullscreen mode with ambient dynamic background glows, centered large rounded artwork, and custom media controls.
-- **Custom Player Controls**: Custom play, pause, scrubbable progress bar, volume slider, shuffle, repeat, previous, and next controls that operate synchronously for both users.
+- **Custom Player Controls**: Custom play, pause, scrubbable progress bar, volume slider, 10s rewind and fast-forward, previous, and next controls that operate synchronously for both users.
 - **Smart Link Resolver**:
   - **YouTube**: Plays directly via YouTube API with native controls hidden.
-  - **Spotify**: Resolves track and podcast metadata (title, artist, high-res artwork) via oEmbed and synchronizes high-fidelity streams under the hood without requiring Spotify Premium.
+  - **Spotify**: Resolves track and podcast metadata (title, artist, high-res artwork) via embed API and synchronizes high-fidelity streams under the hood without requiring Spotify Premium.
   - **Direct Audio / Podcast**: Plays direct `.mp3`, `.m4a`, or podcast audio streams.
 - **WebRTC 1-on-1 Voice Calling**: Integrated voice channel with microphone mute/unmute, deafen remote audio, and animated speaking indicators.
 - **Real-Time Shared Queue & Room Chat**: Add tracks from links, reorder/remove, and send live chat messages.
@@ -24,7 +24,7 @@ DualSync is a responsive, real-time synchronized music and podcast co-listening 
 
 ---
 
-## 👥 Predefined User Accounts
+## Predefined User Accounts
 
 | Username | Password | Role | Room Access |
 | :--- | :--- | :--- | :--- |
@@ -35,7 +35,7 @@ DualSync is a responsive, real-time synchronized music and podcast co-listening 
 
 ---
 
-## 🚀 Getting Started Locally
+## Getting Started Locally
 
 ### 1. Install Dependencies
 ```bash
@@ -56,7 +56,7 @@ The application will be live at `http://localhost:5000` (or `PORT` specified in 
 
 ---
 
-## ☁️ Deployment to Render
+## Deployment to Render
 
 1. Create a new **Web Service** on [Render.com](https://render.com).
 2. Connect your repository: `https://github.com/Vetrans/DualSync.git`.

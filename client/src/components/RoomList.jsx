@@ -20,7 +20,7 @@ export default function RoomList({ rooms, currentUser, onSelectRoom, onOpenAudit
               DualSync
             </h1>
             <p className="text-xs text-neutral-400">
-              {isAdmin ? 'Admin Dashboard — All Shared Rooms' : 'Your Synchronized Sanctuary'}
+              {isAdmin ? 'Admin Dashboard - All Shared Rooms' : 'Your Synchronized Sanctuary'}
             </p>
           </div>
         </div>
@@ -36,15 +36,10 @@ export default function RoomList({ rooms, currentUser, onSelectRoom, onOpenAudit
             </button>
           )}
 
-          <div className="flex items-center gap-2.5 pl-2 border-l border-white/10">
-            <img
-              src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'}
-              alt={currentUser?.username}
-              className="w-8 h-8 rounded-full border border-white/20 object-cover"
-            />
-            <div className="hidden sm:block text-left">
-              <div className="text-xs font-semibold leading-none">{currentUser?.displayName || currentUser?.username}</div>
-              <div className="text-[10px] text-neutral-400 mt-0.5 capitalize">{currentUser?.role}</div>
+          <div className="flex items-center gap-3 pl-3 border-l border-white/10">
+            <div className="text-left">
+              <div className="text-sm font-bold leading-none text-white">{currentUser?.displayName || currentUser?.username}</div>
+              <div className="text-[10px] text-neutral-400 mt-1 capitalize font-medium">{currentUser?.role}</div>
             </div>
             <button
               onClick={onLogout}

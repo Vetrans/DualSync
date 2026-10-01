@@ -237,7 +237,7 @@ export default function PlayerView({
           <span>All Rooms</span>
         </button>
 
-        {/* Room Title & Online Avatars */}
+        {/* Room Title & Online Member Names */}
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[#1DB954] animate-ping" />
@@ -246,13 +246,26 @@ export default function PlayerView({
             </h1>
           </div>
           <div className="text-[11px] text-neutral-300 font-medium flex items-center gap-1.5 mt-0.5">
-            <Users className="w-3.5 h-3.5 text-neutral-400" />
-            <span>{activeUsers.length} in room</span>
+            <span className="w-1.5 h-1.5 rounded-full bg-[#1DB954]" />
+            <span>
+              {activeUsers.length > 0
+                ? activeUsers.map((u) => u.displayName || u.username).join(', ')
+                : `${activeUsers.length} in room`}
+            </span>
           </div>
         </div>
 
-        {/* Right Top Actions: Admin Logs & Logout */}
-        <div className="flex items-center gap-2">
+        {/* Right Top Actions: User Name, Admin Logs & Logout */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="text-right hidden sm:block">
+            <div className="text-xs font-bold text-white leading-tight">
+              {currentUser?.displayName || currentUser?.username}
+            </div>
+            <div className="text-[10px] text-neutral-400 capitalize">
+              {currentUser?.role}
+            </div>
+          </div>
+
           {isAdmin && (
             <button
               onClick={() => setIsAdminAuditOpen(true)}
@@ -277,17 +290,31 @@ export default function PlayerView({
       {/* Centerpiece: Fullscreen Artwork (Directly matched to user's uploaded reference image!) */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 max-w-5xl mx-auto w-full my-auto">
         <div className="flex flex-col items-center max-w-md sm:max-w-lg w-full text-center">
-          {/* Centered Album Cover / Dynamic Empty State */}
-          <div className="relative group w-64 h-64 sm:w-96 sm:h-96 rounded-2xl overflow-hidden shadow-2xl shadow-black/80 border border-white/10 transition-transform duration-500 hover:scale-[1.02] bg-neutral-900 flex items-center justify-center">
-            {currentTrack?.cover ? (
-              <>
+          {/* Centered Album Cover / Spotify Embed Player / Dynamic Empty State */}
+          <div className="relative group w-full max-w-sm sm:max-w-md rounded-2xl overflow-hidden shadow-2xl shadow-black/80 border border-white/10 transition-transform duration-500 hover:scale-[1.01] bg-neutral-900 flex items-center justify-center">
+            {currentTrack?.type === 'spotify' && currentTrack?.embedUrl ? (
+              <div className="w-full h-80 sm:h-96 p-2 flex flex-col justify-center items-center bg-black/50 backdrop-blur-md">
+                <iframe
+                  key={currentTrack.id}
+                  src={currentTrack.embedUrl}
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                  loading="lazy"
+                  className="rounded-xl w-full h-full shadow-lg"
+                  title={currentTrack.title}
+                />
+              </div>
+            ) : currentTrack?.cover ? (
+              <div className="w-64 h-64 sm:w-96 sm:h-96 relative">
                 <img
                   src={currentTrack.cover}
                   alt={currentTrack.title}
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-40 group-hover:opacity-20 transition" />
-              </>
+              </div>
             ) : (
               <div
                 onClick={() => setIsQueueOpen(true)}
@@ -322,7 +349,17 @@ export default function PlayerView({
             >
               <span className="text-xs font-bold text-white block">Media Source</span>
               <span className="text-[11px] text-neutral-400 mt-0.5 truncate block">
-                {currentTrack ? (currentTrack.originalType === 'spotify' ? 'Spotify Sync' : 'YouTube Sync') : 'No link queued'}
+                {currentTrack
+                  ? currentTrack.type === 'spotify'
+                    ? currentTrack.spotifyType === 'show'
+                      ? 'Spotify Podcast Show'
+                      : 'Spotify Podcast Episode'
+                    : currentTrack.originalType === 'spotify'
+                    ? 'Spotify Sync'
+                    : currentTrack.type === 'audio'
+                    ? 'Direct Audio Stream'
+                    : 'YouTube Sync'
+                  : 'No link queued'}
               </span>
             </div>
             <div

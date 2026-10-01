@@ -84,9 +84,21 @@ export default function MediaEngine({
 
   // 2. Handle Track Changes
   useEffect(() => {
-    if (!currentTrack) return;
+    if (!currentTrack) {
+      if (ytPlayerRef.current?.pauseVideo) ytPlayerRef.current.pauseVideo();
+      if (audioRef.current) audioRef.current.pause();
+      return;
+    }
+
+    if (currentTrack.type === 'spotify') {
+      // Pause YouTube and HTML5 audio so only authentic Spotify podcast plays
+      if (ytPlayerRef.current?.pauseVideo) ytPlayerRef.current.pauseVideo();
+      if (audioRef.current) audioRef.current.pause();
+      return;
+    }
 
     if (currentTrack.videoId && ytPlayerRef.current && ytPlayerRef.current.loadVideoById) {
+      if (audioRef.current) audioRef.current.pause();
       try {
         ytPlayerRef.current.loadVideoById({
           videoId: currentTrack.videoId,
@@ -101,13 +113,14 @@ export default function MediaEngine({
         console.warn('[MediaEngine] Error loading video ID:', e);
       }
     } else if (currentTrack.audioSrc && audioRef.current) {
+      if (ytPlayerRef.current?.pauseVideo) ytPlayerRef.current.pauseVideo();
       audioRef.current.src = currentTrack.audioSrc;
       audioRef.current.currentTime = currentTime || 0;
       if (isPlaying) {
         audioRef.current.play().catch(() => {});
       }
     }
-  }, [currentTrack?.id, currentTrack?.videoId]);
+  }, [currentTrack?.id, currentTrack?.videoId, currentTrack?.type]);
 
   // 3. Handle Play / Pause Sync
   useEffect(() => {

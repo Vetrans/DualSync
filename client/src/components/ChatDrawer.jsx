@@ -75,14 +75,9 @@ export default function ChatDrawer({
           return (
             <div
               key={msg.id}
-              className={`flex gap-2.5 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}
+              className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
             >
-              <img
-                src={msg.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'}
-                alt={msg.sender}
-                className="w-7 h-7 rounded-full object-cover shrink-0 border border-white/10 mt-1"
-              />
-              <div className={`max-w-[78%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+              <div className={`max-w-[85%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                 <div className="flex items-center gap-1.5 mb-1 px-1">
                   <span className="text-[11px] font-bold text-neutral-300">
                     {isMe ? 'You' : msg.sender}
@@ -92,7 +87,7 @@ export default function ChatDrawer({
                 <div
                   className={`p-3 rounded-2xl text-xs leading-relaxed break-words ${
                     isMe
-                      ? 'bg-[#1DB954] text-black font-medium rounded-tr-sm'
+                      ? 'bg-[#1DB954] text-black font-semibold rounded-tr-sm shadow-md'
                       : 'bg-white/10 text-white rounded-tl-sm border border-white/5'
                   }`}
                 >

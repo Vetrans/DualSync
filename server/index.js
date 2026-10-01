@@ -390,8 +390,8 @@ if (fs.existsSync(clientDistPath)) {
 
 server.listen(PORT, () => {
   console.log(`===============================================`);
-  console.log(`🎵 DualSync Server listening on port ${PORT}`);
-  console.log(`🔒 Predefined accounts: Rishi (Admin), Shweta, Kavita, Archit`);
-  console.log(`⏱️ 2-Hour Inactivity Auto-Logout: ACTIVE`);
+  console.log(`DualSync Server listening on port ${PORT}`);
+  console.log(`Predefined accounts: Rishi (Admin), Shweta, Kavita, Archit`);
+  console.log(`2-Hour Inactivity Auto-Logout: ACTIVE`);
   console.log(`===============================================`);
 });

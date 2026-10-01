@@ -14,15 +14,15 @@ export function getSocket(token) {
     });
 
     socket.on('connect', () => {
-      console.log('⚡ Connected to DualSync WebSocket server');
+      console.log('[Socket] Connected to DualSync WebSocket server');
     });
 
     socket.on('disconnect', (reason) => {
-      console.log('⚠️ Disconnected from WebSocket:', reason);
+      console.log('[Socket] Disconnected from WebSocket:', reason);
     });
 
     socket.on('connect_error', (err) => {
-      console.warn('❌ WebSocket connection error:', err.message);
+      console.warn('[Socket] WebSocket connection error:', err.message);
     });
   }
   return socket;
