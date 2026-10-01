@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import { Music2, Shield, Lock, User, ArrowRight, Radio } from 'lucide-react';
-
-const PRESET_ACCOUNTS = [
-  { username: 'Rishi', pass: 'Mrengineer@001', role: 'Admin', desc: 'Full access to all 3 rooms & Audit Logs' },
-  { username: 'Shweta', pass: 'Iamdayaan', role: 'User', desc: 'Access to Rishi & Shweta room' },
-  { username: 'Kavita', pass: 'Iamrude', role: 'User', desc: 'Access to Rishi & Kavita room' },
-  { username: 'Archit', pass: 'Iloverishi', role: 'User', desc: 'Access to Rishi & Archit room' },
-];
+import { Lock, User, ArrowRight, Radio } from 'lucide-react';
 
 export default function Login({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
@@ -48,12 +41,6 @@ export default function Login({ onLoginSuccess }) {
     }
   };
 
-  const selectPreset = (acc) => {
-    setUsername(acc.username);
-    setPassword(acc.pass);
-    setError('');
-  };
-
   return (
     <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#121212] relative overflow-hidden">
       {/* Background ambient lighting */}
@@ -76,9 +63,9 @@ export default function Login({ onLoginSuccess }) {
 
           {/* Error notice */}
           {error && (
-            <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center gap-2 animate-shake">
-              <span className="w-2 h-2 rounded-full bg-red-400" />
-              {error}
+            <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -94,7 +81,7 @@ export default function Login({ onLoginSuccess }) {
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
-                  placeholder="e.g. Rishi, Shweta, Kavita, Archit"
+                  placeholder="Enter your username"
                   className="w-full pl-10 pr-4 py-3 bg-[#1e1e1e] border border-white/10 rounded-xl text-white placeholder-neutral-500 focus:outline-none focus:border-[#1DB954] focus:ring-1 focus:ring-[#1DB954] transition text-sm"
                   autoFocus
                 />
@@ -126,47 +113,14 @@ export default function Login({ onLoginSuccess }) {
                 <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  <span>Enter DualSync</span>
+                  <span>Sign In</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
           </form>
 
-          {/* Quick Account Preset Switcher */}
-          <div className="mt-8 pt-6 border-t border-white/10">
-            <p className="text-xs font-medium text-neutral-400 mb-3 text-center">
-              Quick Select Demo Accounts:
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {PRESET_ACCOUNTS.map((acc) => (
-                <button
-                  key={acc.username}
-                  type="button"
-                  onClick={() => selectPreset(acc)}
-                  className={`p-2.5 rounded-lg border text-left transition flex flex-col cursor-pointer ${
-                    username.toLowerCase() === acc.username.toLowerCase()
-                      ? 'bg-[#1DB954]/15 border-[#1DB954] text-white'
-                      : 'bg-white/5 border-white/5 hover:bg-white/10 text-neutral-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="font-semibold text-xs text-white">{acc.username}</span>
-                    {acc.role === 'Admin' ? (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30">
-                        Admin
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-neutral-400">User</span>
-                    )}
-                  </div>
-                  <span className="text-[10px] text-neutral-400 mt-0.5 truncate">{acc.desc}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <p className="mt-6 text-[11px] text-center text-neutral-500">
+          <p className="mt-8 text-[11px] text-center text-neutral-500">
             Sessions auto-expire after 2 hours of inactivity.
           </p>
         </div>

@@ -66,19 +66,23 @@ export default function PlayerControls({
     <div className="w-full bg-[#181818]/95 backdrop-blur-xl border-t border-white/10 px-4 py-3 sm:px-6 sm:py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 select-none z-30">
       {/* 1. Track Info (Left) */}
       <div className="flex items-center gap-3 w-full sm:w-1/4 min-w-0">
-        <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-neutral-800 shadow-md">
-          <img
-            src={currentTrack?.cover || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=120&q=80'}
-            alt="Track Artwork"
-            className="w-full h-full object-cover"
-          />
+        <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-neutral-800 shadow-md flex items-center justify-center">
+          {currentTrack?.cover ? (
+            <img
+              src={currentTrack.cover}
+              alt="Track Artwork"
+              className="w-full h-full object-cover"
+            />
+          ) : (
+            <Radio className="w-5 h-5 text-neutral-500" />
+          )}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-bold text-white truncate hover:underline cursor-pointer">
-            {currentTrack?.title || 'No track selected'}
+          <div className="text-sm font-bold text-white truncate">
+            {currentTrack?.title || 'Nothing playing'}
           </div>
           <div className="text-xs text-neutral-400 truncate flex items-center gap-1.5 mt-0.5">
-            <span>{currentTrack?.artist || 'DualSync'}</span>
+            <span>{currentTrack?.artist || 'Queue is empty'}</span>
             {currentTrack?.originalType === 'spotify' && (
               <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#1DB954]/20 text-[#1DB954] font-bold border border-[#1DB954]/30">
                 Spotify Sync

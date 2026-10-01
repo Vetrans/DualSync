@@ -1,12 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Play, Music, Sparkles, ExternalLink, Disc } from 'lucide-react';
-
-const QUICK_TEST_LINKS = [
-  { name: 'Talha Anjum — Downers at Dusk', url: 'https://www.youtube.com/watch?v=7eou_bV6_Qo' },
-  { name: 'Huberman Lab Podcast', url: 'https://www.youtube.com/watch?v=a9yQCm8wF-E' },
-  { name: 'Lofi Hip Hop Radio', url: 'https://www.youtube.com/watch?v=jfKfPfyJRdk' },
-  { name: 'Spotify Track Sample', url: 'https://open.spotify.com/track/6rqhFgbbKwnb9MLmUQDhG6' },
-];
+import { X, Plus, Trash2, Play, Music, Disc } from 'lucide-react';
 
 export default function QueueDrawer({
   isOpen,
@@ -35,20 +28,6 @@ export default function QueueDrawer({
       setUrlInput('');
     } catch (err) {
       setError(err.message || 'Failed to resolve media URL');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickAdd = async (url) => {
-    setUrlInput(url);
-    setLoading(true);
-    setError('');
-    try {
-      await onAddMedia(url);
-      setUrlInput('');
-    } catch (err) {
-      setError(err.message || 'Failed to add track');
     } finally {
       setLoading(false);
     }
@@ -109,26 +88,6 @@ export default function QueueDrawer({
             {error}
           </div>
         )}
-
-        {/* Quick Suggestions */}
-        <div className="mt-3">
-          <div className="text-[10px] uppercase font-bold text-neutral-400 flex items-center gap-1 mb-1.5">
-            <Sparkles className="w-3 h-3 text-[#1DB954]" />
-            Quick Presets
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {QUICK_TEST_LINKS.map((link) => (
-              <button
-                key={link.name}
-                type="button"
-                onClick={() => handleQuickAdd(link.url)}
-                className="text-[10px] px-2 py-1 rounded-md bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/5 transition truncate max-w-[170px] cursor-pointer"
-              >
-                + {link.name}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Queue List Content */}
@@ -168,7 +127,7 @@ export default function QueueDrawer({
               <Music className="w-8 h-8 text-neutral-500 mx-auto mb-2" />
               <p className="text-xs text-neutral-400">Queue is empty</p>
               <p className="text-[11px] text-neutral-400 mt-0.5">
-                Paste any YouTube or Spotify link above to queue tracks together!
+                Paste any YouTube or Spotify link above to start listening together!
               </p>
             </div>
           ) : (

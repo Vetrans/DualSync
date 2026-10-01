@@ -110,27 +110,33 @@ export default function RoomList({ rooms, currentUser, onSelectRoom, onOpenAudit
 
                 {/* Now Playing Widget Preview */}
                 <div className="p-3 rounded-xl bg-black/40 border border-white/5 mb-6 flex items-center gap-3">
-                  <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-neutral-800">
-                    <img
-                      src={room.currentTrack?.cover || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=120&q=80'}
-                      alt="Cover"
-                      className={`w-full h-full object-cover ${hasPlayingTrack ? 'scale-105' : ''}`}
-                    />
-                    {hasPlayingTrack && (
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <Disc3 className="w-5 h-5 text-[#1DB954] animate-spin-slow" />
-                      </div>
+                  <div className="relative w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-neutral-800 flex items-center justify-center">
+                    {room.currentTrack?.cover ? (
+                      <>
+                        <img
+                          src={room.currentTrack.cover}
+                          alt="Cover"
+                          className={`w-full h-full object-cover ${hasPlayingTrack ? 'scale-105' : ''}`}
+                        />
+                        {hasPlayingTrack && (
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                            <Disc3 className="w-5 h-5 text-[#1DB954] animate-spin-slow" />
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <Radio className="w-5 h-5 text-neutral-500" />
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="text-[10px] text-neutral-400 uppercase tracking-wider font-semibold">
-                      {room.isPlaying ? 'Now Playing' : 'Paused'}
+                      {room.currentTrack ? (room.isPlaying ? 'Now Playing' : 'Paused') : 'Room Ready'}
                     </div>
                     <div className="text-xs font-semibold text-white truncate">
-                      {room.currentTrack?.title || 'No track loaded'}
+                      {room.currentTrack?.title || 'No track playing'}
                     </div>
                     <div className="text-[11px] text-neutral-400 truncate">
-                      {room.currentTrack?.artist || 'Ready to play'}
+                      {room.currentTrack?.artist || 'Queue is empty'}
                     </div>
                   </div>
                 </div>

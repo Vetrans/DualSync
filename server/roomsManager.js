@@ -1,20 +1,6 @@
 import { auditLogger } from './auditLogger.js';
 import { USERS } from './auth.js';
 
-// Pre-configured starter track matching user's reference image!
-const DEFAULT_STARTER_TRACK = {
-  id: 'starter_downers_at_dusk',
-  type: 'youtube',
-  videoId: '7eou_bV6_Qo', // Talha Anjum - Downers at Dusk
-  url: 'https://www.youtube.com/watch?v=7eou_bV6_Qo',
-  title: 'Downers at Dusk',
-  artist: 'Talha Anjum, Umair',
-  cover: 'https://i.scdn.co/image/ab67616d0000b273b5f39e31dcfdc602521c7a2d',
-  duration: 256,
-  addedBy: 'System',
-  addedAt: Date.now(),
-};
-
 class RoomsManager {
   constructor() {
     this.rooms = new Map();
@@ -46,35 +32,13 @@ class RoomsManager {
     for (const conf of roomConfigs) {
       this.rooms.set(conf.id, {
         ...conf,
-        currentTrack: { ...DEFAULT_STARTER_TRACK },
+        currentTrack: null,
         isPlaying: false,
         currentTime: 0,
         lastSyncTimestamp: Date.now(),
         playbackRate: 1,
-        queue: [
-          {
-            id: 'sample_podcast',
-            type: 'youtube',
-            videoId: 'dQw4w9WgXcQ',
-            url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-            title: 'Lofi Chill Beats & Podcast Room',
-            artist: 'DualSync Radio',
-            cover: 'https://images.unsplash.com/photo-1518609878373-06d740f60d8b?auto=format&fit=crop&w=600&q=80',
-            duration: 212,
-            addedBy: 'Rishi',
-            addedAt: Date.now() + 1000,
-          },
-        ],
-        chatMessages: [
-          {
-            id: 'welcome_1',
-            sender: 'DualSync Bot',
-            avatar: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=100&q=80',
-            text: `Welcome to ${conf.name}! Paste a YouTube or Spotify link to listen together. Click the microphone to start real-time voice call.`,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            isSystem: true,
-          }
-        ],
+        queue: [],
+        chatMessages: [],
         activeUsers: new Map(), // socketId -> { username, avatar, joinedAt }
         voiceParticipants: new Map(), // socketId -> { username, isSpeaking, micMuted }
       });

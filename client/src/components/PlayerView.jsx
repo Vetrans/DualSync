@@ -367,39 +367,61 @@ export default function PlayerView({
       {/* Centerpiece: Fullscreen Artwork (Directly matched to user's uploaded reference image!) */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 max-w-5xl mx-auto w-full my-auto">
         <div className="flex flex-col items-center max-w-md sm:max-w-lg w-full text-center">
-          {/* Centered Album Cover with subtle drop shadow & rounded corners */}
-          <div className="relative group w-64 h-64 sm:w-96 sm:h-96 rounded-2xl overflow-hidden shadow-2xl shadow-black/80 border border-white/10 transition-transform duration-500 hover:scale-[1.02] bg-neutral-900">
-            <img
-              src={currentTrack?.cover || 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80'}
-              alt={currentTrack?.title}
-              className="w-full h-full object-cover"
-            />
-            {/* Subtle glow highlight on top of album art */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-40 group-hover:opacity-20 transition" />
+          {/* Centered Album Cover / Dynamic Empty State */}
+          <div className="relative group w-64 h-64 sm:w-96 sm:h-96 rounded-2xl overflow-hidden shadow-2xl shadow-black/80 border border-white/10 transition-transform duration-500 hover:scale-[1.02] bg-neutral-900 flex items-center justify-center">
+            {currentTrack?.cover ? (
+              <>
+                <img
+                  src={currentTrack.cover}
+                  alt={currentTrack.title}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-40 group-hover:opacity-20 transition" />
+              </>
+            ) : (
+              <div
+                onClick={() => setIsQueueOpen(true)}
+                className="flex flex-col items-center justify-center text-center p-6 cursor-pointer group-hover:scale-105 transition"
+              >
+                <div className="w-20 h-20 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-4 group-hover:border-[#1DB954] group-hover:bg-[#1DB954]/10 transition">
+                  <Radio className="w-10 h-10 text-neutral-400 group-hover:text-[#1DB954] transition" />
+                </div>
+                <span className="text-sm font-bold text-white mb-1">Queue is Empty</span>
+                <span className="text-xs text-neutral-400 max-w-xs">
+                  Click here or open the Queue to paste a YouTube, Spotify, or Podcast link!
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* Song Title and Artist (Prominent typography) */}
+          {/* Song Title and Artist */}
           <div className="mt-6 sm:mt-8 w-full px-4">
             <h2 className="text-xl sm:text-3xl font-extrabold text-white tracking-tight truncate drop-shadow-lg">
-              {currentTrack?.title || 'Open Letter'}
+              {currentTrack?.title || 'Nothing Playing'}
             </h2>
-            <p className="text-sm sm:text-base text-neutral-300 font-medium mt-1 truncate">
-              {currentTrack?.artist || 'Talha Anjum, Umair'}
+            <p className="text-sm sm:text-base text-neutral-400 font-medium mt-1 truncate">
+              {currentTrack?.artist || 'Add a track to the queue to begin listening together'}
             </p>
           </div>
 
-          {/* About the Artist / Credits Preview Cards (from Reference Image) */}
+          {/* About the Artist / Credits Preview Cards */}
           <div className="w-full grid grid-cols-2 gap-3 mt-6 sm:mt-8 hidden sm:grid">
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 text-left hover:bg-black/60 transition cursor-pointer">
-              <span className="text-xs font-bold text-white block">About the artist</span>
+            <div
+              onClick={() => setIsQueueOpen(true)}
+              className="p-3.5 rounded-xl bg-black/40 border border-white/10 text-left hover:bg-black/60 transition cursor-pointer"
+            >
+              <span className="text-xs font-bold text-white block">Media Source</span>
               <span className="text-[11px] text-neutral-400 mt-0.5 truncate block">
-                {currentTrack?.artist}
+                {currentTrack ? (currentTrack.originalType === 'spotify' ? 'Spotify Sync' : 'YouTube Sync') : 'No link queued'}
               </span>
             </div>
-            <div className="p-3.5 rounded-xl bg-black/40 border border-white/10 text-left hover:bg-black/60 transition cursor-pointer">
+            <div
+              onClick={() => setIsQueueOpen(true)}
+              className="p-3.5 rounded-xl bg-black/40 border border-white/10 text-left hover:bg-black/60 transition cursor-pointer"
+            >
               <span className="text-xs font-bold text-white block">Room Queue</span>
               <span className="text-[11px] text-neutral-400 mt-0.5 truncate block">
-                {queue.length} track(s) waiting
+                {queue.length > 0 ? `${queue.length} track(s) waiting` : 'Empty (Click to add)'}
               </span>
             </div>
           </div>
