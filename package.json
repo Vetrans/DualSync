@@ -5,6 +5,7 @@
   "main": "server/index.js",
   "type": "module",
   "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
     "start": "node server/index.js",
     "server": "node server/index.js",
     "client": "npm --prefix client run dev",
@@ -30,5 +31,8 @@
     "express": "^4.21.2",
     "express-session": "^1.18.1",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.5"
   }
 }
