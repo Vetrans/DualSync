@@ -89,13 +89,6 @@ export default function RoomList({ rooms, currentUser, onSelectRoom, onOpenAudit
                       {room.activeCount} online
                     </span>
                   </div>
-
-                  {room.voiceCount > 0 && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-medium border border-emerald-500/30 flex items-center gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
-                      Voice active ({room.voiceCount})
-                    </span>
-                  )}
                 </div>
 
                 {/* Room Info */}

@@ -4,20 +4,15 @@ import {
   Users,
   ShieldAlert,
   LogOut,
-  Sparkles,
-  Info,
   Maximize2,
   Minimize2,
   Radio,
-  ExternalLink,
 } from 'lucide-react';
 import PlayerControls from './PlayerControls';
 import MediaEngine from './MediaEngine';
 import QueueDrawer from './QueueDrawer';
 import ChatDrawer from './ChatDrawer';
-import VoiceCallBar from './VoiceCallBar';
 import AdminAuditModal from './AdminAuditModal';
-import { WebRTCVoiceManager } from '../services/webrtc';
 
 export default function PlayerView({
   room,
@@ -45,63 +40,30 @@ export default function PlayerView({
   const [isAdminAuditOpen, setIsAdminAuditOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
 
-  // WebRTC Voice Call state
-  const [isVoiceActive, setIsVoiceActive] = useState(false);
-  const [isMicMuted, setIsMicMuted] = useState(false);
-  const [isDeafened, setIsDeafened] = useState(false);
-  const [isSpeaking, setIsSpeaking] = useState(false);
-  const [voiceParticipants, setVoiceParticipants] = useState(room.voiceParticipants || []);
-
   // Fullscreen state
   const [isFullscreen, setIsFullscreen] = useState(false);
   const playerContainerRef = useRef(null);
-  const webrtcVoiceRef = useRef(null);
 
   const isAdmin = currentUser?.role === 'admin';
 
-  // 1. Initialize WebRTC voice manager
-  useEffect(() => {
-    if (!socket) return;
-
-    webrtcVoiceRef.current = new WebRTCVoiceManager(socket, {
-      onRemoteStream: (stream) => {
-        console.log('[PlayerView] Remote audio stream received');
-      },
-      onSpeakingChange: (speaking) => {
-        setIsSpeaking(speaking);
-      },
-      onError: (err) => {
-        alert(`Voice Call: ${err}`);
-        setIsVoiceActive(false);
-      },
-    });
-
-    return () => {
-      if (webrtcVoiceRef.current) {
-        webrtcVoiceRef.current.leaveVoice();
-      }
-    };
-  }, [socket]);
-
-  // 2. Socket Listeners for Real-Time Sync
+  // 1. Socket Listeners for Real-Time Sync
   useEffect(() => {
     if (!socket) return;
 
     // Room state update (users joined/left)
     const handleRoomState = (updatedState) => {
       if (updatedState.id !== room.id) return;
-      if (updatedState.currentTrack) setCurrentTrack(updatedState.currentTrack);
+      if (updatedState.currentTrack !== undefined) setCurrentTrack(updatedState.currentTrack);
       setIsPlaying(updatedState.isPlaying);
       if (typeof updatedState.currentTime === 'number') setCurrentTime(updatedState.currentTime);
       if (updatedState.queue) setQueue(updatedState.queue);
       if (updatedState.activeUsers) setActiveUsers(updatedState.activeUsers);
-      if (updatedState.voiceParticipants) setVoiceParticipants(updatedState.voiceParticipants);
     };
 
     // Playback sync from any user in room
     const handlePlaybackSync = (syncData) => {
       console.log('[Socket] Playback sync received:', syncData.action, syncData);
-      if (syncData.currentTrack) {
+      if (syncData.currentTrack !== undefined) {
         setCurrentTrack(syncData.currentTrack);
       }
       setIsPlaying(syncData.isPlaying);
@@ -113,7 +75,7 @@ export default function PlayerView({
     // Queue sync
     const handleQueueSync = ({ queue: updatedQueue, currentTrack: updatedTrack }) => {
       if (updatedQueue) setQueue(updatedQueue);
-      if (updatedTrack) setCurrentTrack(updatedTrack);
+      if (updatedTrack !== undefined) setCurrentTrack(updatedTrack);
     };
 
     // Live chat message
@@ -124,25 +86,16 @@ export default function PlayerView({
       }
     };
 
-    // Live voice participants list
-    const handleVoiceUpdate = ({ roomId, participants }) => {
-      if (roomId === room.id) {
-        setVoiceParticipants(participants || []);
-      }
-    };
-
     socket.on('room_state_update', handleRoomState);
     socket.on('room_playback_sync', handlePlaybackSync);
     socket.on('room_queue_sync', handleQueueSync);
     socket.on('new_chat_message', handleNewChatMessage);
-    socket.on('room_voice_update', handleVoiceUpdate);
 
     return () => {
       socket.off('room_state_update', handleRoomState);
       socket.off('room_playback_sync', handlePlaybackSync);
       socket.off('room_queue_sync', handleQueueSync);
       socket.off('new_chat_message', handleNewChatMessage);
-      socket.off('room_voice_update', handleVoiceUpdate);
     };
   }, [socket, room.id, isChatOpen]);
 
@@ -153,7 +106,7 @@ export default function PlayerView({
     }
   }, [isChatOpen]);
 
-  // 3. User Controls Play/Pause
+  // 2. User Controls Play/Pause
   const handlePlayPause = () => {
     const nextPlayState = !isPlaying;
     setIsPlaying(nextPlayState);
@@ -166,7 +119,7 @@ export default function PlayerView({
     });
   };
 
-  // 4. User Controls Seek
+  // 3. User Controls Seek
   const handleSeek = (newTime) => {
     setCurrentTime(newTime);
     socket?.emit('playback_action', {
@@ -177,12 +130,12 @@ export default function PlayerView({
     });
   };
 
-  // 5. User Controls Next Track
+  // 4. User Controls Next Track
   const handleNextTrack = () => {
     socket?.emit('queue_next', { roomId: room.id });
   };
 
-  // 6. User Controls Previous / Restart Track
+  // 5. User Controls Previous / Restart Track
   const handlePrevTrack = () => {
     if (currentTime > 3) {
       handleSeek(0);
@@ -196,7 +149,7 @@ export default function PlayerView({
     }
   };
 
-  // 7. Add Media Link (YouTube, Spotify, Podcast)
+  // 6. Add Media Link (YouTube, Spotify, Podcast)
   const handleAddMedia = async (url) => {
     const res = await fetch('/api/resolve-media', {
       method: 'POST',
@@ -218,7 +171,7 @@ export default function PlayerView({
     });
   };
 
-  // 8. Remove track from queue
+  // 7. Remove track from queue
   const handleRemoveTrack = (trackId) => {
     socket?.emit('queue_remove', {
       roomId: room.id,
@@ -226,7 +179,7 @@ export default function PlayerView({
     });
   };
 
-  // 9. Play specific track immediately
+  // 8. Play specific track immediately
   const handlePlayTrackNow = (track) => {
     socket?.emit('playback_action', {
       roomId: room.id,
@@ -237,7 +190,7 @@ export default function PlayerView({
     });
   };
 
-  // 10. Send Chat Message
+  // 9. Send Chat Message
   const handleSendMessage = (text) => {
     socket?.emit('send_chat', {
       roomId: room.id,
@@ -245,34 +198,7 @@ export default function PlayerView({
     });
   };
 
-  // 11. WebRTC Voice Call Handlers
-  const handleToggleVoice = async () => {
-    if (isVoiceActive) {
-      webrtcVoiceRef.current?.leaveVoice();
-      setIsVoiceActive(false);
-    } else {
-      const ok = await webrtcVoiceRef.current?.joinVoice(room.id, currentUser);
-      if (ok) {
-        setIsVoiceActive(true);
-      }
-    }
-  };
-
-  const handleToggleMute = () => {
-    if (webrtcVoiceRef.current) {
-      const muted = webrtcVoiceRef.current.toggleMute();
-      setIsMicMuted(muted);
-    }
-  };
-
-  const handleToggleDeafen = () => {
-    if (webrtcVoiceRef.current) {
-      const deafened = webrtcVoiceRef.current.toggleDeafen();
-      setIsDeafened(deafened);
-    }
-  };
-
-  // 12. Fullscreen Toggle
+  // 10. Fullscreen Toggle
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
       playerContainerRef.current?.requestFullscreen?.().catch(() => {});
@@ -348,22 +274,6 @@ export default function PlayerView({
         </div>
       </header>
 
-      {/* Voice Call Active Banner (if user joined voice) */}
-      <div className="relative z-20">
-        <VoiceCallBar
-          isVoiceActive={isVoiceActive}
-          isMicMuted={isMicMuted}
-          isDeafened={isDeafened}
-          isSpeaking={isSpeaking}
-          participants={voiceParticipants}
-          currentUser={currentUser}
-          onJoinVoice={handleToggleVoice}
-          onLeaveVoice={handleToggleVoice}
-          onToggleMute={handleToggleMute}
-          onToggleDeafen={handleToggleDeafen}
-        />
-      </div>
-
       {/* Centerpiece: Fullscreen Artwork (Directly matched to user's uploaded reference image!) */}
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 max-w-5xl mx-auto w-full my-auto">
         <div className="flex flex-col items-center max-w-md sm:max-w-lg w-full text-center">
@@ -404,7 +314,7 @@ export default function PlayerView({
             </p>
           </div>
 
-          {/* About the Artist / Credits Preview Cards */}
+          {/* Media Details / Queue Quick Cards */}
           <div className="w-full grid grid-cols-2 gap-3 mt-6 sm:mt-8 hidden sm:grid">
             <div
               onClick={() => setIsQueueOpen(true)}
@@ -449,9 +359,6 @@ export default function PlayerView({
           volume={volume}
           queueCount={queue.length}
           unreadChatCount={unreadChatCount}
-          isVoiceActive={isVoiceActive}
-          isMicMuted={isMicMuted}
-          isSpeaking={isSpeaking}
           onPlayPause={handlePlayPause}
           onSeek={handleSeek}
           onVolumeChange={setVolume}
@@ -459,8 +366,6 @@ export default function PlayerView({
           onPrevTrack={handlePrevTrack}
           onToggleQueue={() => setIsQueueOpen(!isQueueOpen)}
           onToggleChat={() => setIsChatOpen(!isChatOpen)}
-          onToggleVoice={handleToggleVoice}
-          onToggleMute={handleToggleMute}
           isFullscreen={isFullscreen}
           onToggleFullscreen={toggleFullscreen}
         />

@@ -10,8 +10,6 @@ import {
   VolumeX,
   ListMusic,
   MessageSquare,
-  Mic,
-  MicOff,
   Maximize2,
   Minimize2,
   Radio,
@@ -26,9 +24,6 @@ export default function PlayerControls({
   volume,
   queueCount,
   unreadChatCount,
-  isVoiceActive,
-  isMicMuted,
-  isSpeaking,
   onPlayPause,
   onSeek,
   onVolumeChange,
@@ -36,8 +31,6 @@ export default function PlayerControls({
   onPrevTrack,
   onToggleQueue,
   onToggleChat,
-  onToggleVoice,
-  onToggleMute,
   isFullscreen,
   onToggleFullscreen,
 }) {
@@ -183,29 +176,6 @@ export default function PlayerControls({
 
       {/* 3. Utility & Controls (Right) */}
       <div className="flex items-center justify-end gap-3 sm:gap-4 w-full sm:w-1/4">
-        {/* Voice Call Mic Toggle */}
-        <button
-          type="button"
-          onClick={onToggleVoice}
-          className={`relative p-2 rounded-xl border transition flex items-center justify-center cursor-pointer ${
-            isVoiceActive
-              ? isSpeaking
-                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/50 shadow-lg shadow-emerald-500/25 ring-2 ring-emerald-500/40'
-                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
-              : 'bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white border-white/5'
-          }`}
-          title={isVoiceActive ? 'Voice Connected (Click to disconnect)' : 'Join WebRTC Voice Call'}
-        >
-          {isVoiceActive ? (
-            isMicMuted ? <MicOff className="w-4 h-4 text-red-400" /> : <Mic className="w-4 h-4 text-emerald-400" />
-          ) : (
-            <Mic className="w-4 h-4" />
-          )}
-          {isVoiceActive && !isMicMuted && (
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-          )}
-        </button>
-
         {/* Queue Button */}
         <button
           type="button"
