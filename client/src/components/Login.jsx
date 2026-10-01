@@ -42,28 +42,28 @@ export default function Login({ onLoginSuccess }) {
   };
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#121212] relative overflow-hidden">
+    <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#121212] relative overflow-hidden safe-pb safe-pt">
       {/* Background ambient lighting */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-tr from-[#6b0f24]/30 to-[#1DB954]/15 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[350px] sm:w-[600px] h-[350px] sm:h-[600px] bg-gradient-to-tr from-[#6b0f24]/30 to-[#1DB954]/15 rounded-full blur-[90px] sm:blur-[120px] pointer-events-none" />
 
       <div className="w-full max-w-md z-10">
-        <div className="glass-panel p-8 rounded-2xl shadow-2xl border border-white/10">
+        <div className="glass-panel p-6 sm:p-8 rounded-2xl shadow-2xl border border-white/10">
           {/* Logo & Header */}
-          <div className="flex flex-col items-center mb-8 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#1DB954] to-[#128038] flex items-center justify-center shadow-lg shadow-[#1DB954]/25 mb-4">
-              <Radio className="w-9 h-9 text-white" />
+          <div className="flex flex-col items-center mb-6 sm:mb-8 text-center">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-[#1DB954] to-[#128038] flex items-center justify-center shadow-lg shadow-[#1DB954]/25 mb-3 sm:mb-4">
+              <Radio className="w-8 h-8 sm:w-9 sm:h-9 text-white" />
             </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
               DualSync
             </h1>
-            <p className="text-sm text-neutral-400 mt-1">
+            <p className="text-xs sm:text-sm text-neutral-400 mt-1">
               Synchronized Music & Podcast Rooms
             </p>
           </div>
 
           {/* Error notice */}
           {error && (
-            <div className="mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm flex items-center gap-2">
+            <div className="mb-5 sm:mb-6 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-xs sm:text-sm flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" />
               <span>{error}</span>
             </div>
@@ -72,13 +72,19 @@ export default function Login({ onLoginSuccess }) {
           {/* Login Form */}
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">
+              <label
+                htmlFor="username"
+                className="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-1.5"
+              >
                 Username
               </label>
               <div className="relative">
                 <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                 <input
+                  id="username"
+                  name="username"
                   type="text"
+                  autoComplete="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   placeholder="Enter your username"
@@ -89,13 +95,19 @@ export default function Login({ onLoginSuccess }) {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">
+              <label
+                htmlFor="password"
+                className="block text-xs font-semibold text-neutral-300 uppercase tracking-wider mb-1.5"
+              >
                 Password
               </label>
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-neutral-400" />
                 <input
+                  id="password"
+                  name="password"
                   type="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
@@ -120,7 +132,7 @@ export default function Login({ onLoginSuccess }) {
             </button>
           </form>
 
-          <p className="mt-8 text-[11px] text-center text-neutral-500">
+          <p className="mt-6 sm:mt-8 text-[11px] text-center text-neutral-500">
             Sessions auto-expire after 2 hours of inactivity.
           </p>
         </div>

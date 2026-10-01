@@ -98,23 +98,32 @@ export default function QueueDrawer({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-[#181818]/95 backdrop-blur-2xl border-l border-white/10 z-50 flex flex-col shadow-2xl transition-transform duration-300">
-      {/* Header */}
-      <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Disc className="w-5 h-5 text-[#1DB954]" />
-          <h2 className="text-lg font-bold text-white">Queue & Playlist</h2>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-neutral-300 font-semibold">
-            {queue.length}
-          </span>
+    <>
+      {/* Backdrop overlay for mobile & tablet outside tap */}
+      <div
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 transition-opacity cursor-pointer"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      <div className="fixed inset-y-0 right-0 w-full sm:w-96 md:w-[420px] bg-[#181818]/95 backdrop-blur-2xl border-l border-white/10 z-50 flex flex-col shadow-2xl transition-transform duration-300 safe-pb safe-pt">
+        {/* Header */}
+        <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Disc className="w-5 h-5 text-[#1DB954]" />
+            <h2 className="text-lg font-bold text-white">Queue & Playlist</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-neutral-300 font-semibold">
+              {queue.length}
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition cursor-pointer active:scale-95"
+            aria-label="Close queue"
+          >
+            <X className="w-5 h-5" />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition cursor-pointer"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </div>
 
       {/* Add Media Input */}
       <div className="p-4 border-b border-white/10">
@@ -289,10 +298,11 @@ export default function QueueDrawer({
                   </div>
                 </div>
               ))}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }

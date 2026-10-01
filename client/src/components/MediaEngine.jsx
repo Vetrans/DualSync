@@ -141,7 +141,7 @@ export default function MediaEngine({
     }
   }, [isPlaying]);
 
-  // 4. Handle External Seek & Drift Correction
+  // 4. Handle External Seek & Drift Correction (Tightened for high sync fidelity)
   useEffect(() => {
     if (isSyncingRef.current) return;
 
@@ -149,19 +149,20 @@ export default function MediaEngine({
       try {
         const localTime = ytPlayerRef.current.getCurrentTime() || 0;
         const drift = Math.abs(localTime - currentTime);
-        // If drift is more than 1.5 seconds, align playback
-        if (drift > 1.5) {
+        // Tightened drift threshold to 0.75s for tighter co-listening sync
+        if (drift > 0.75) {
           isSyncingRef.current = true;
           ytPlayerRef.current.seekTo(currentTime, true);
           setTimeout(() => {
             isSyncingRef.current = false;
-          }, 400);
+          }, 350);
         }
       } catch (e) {}
     } else if (audioRef.current) {
       const localTime = audioRef.current.currentTime || 0;
       const drift = Math.abs(localTime - currentTime);
-      if (drift > 1.5) {
+      // Tightened drift threshold to 0.35s for audio streams
+      if (drift > 0.35) {
         audioRef.current.currentTime = currentTime;
       }
     }
@@ -180,6 +181,7 @@ export default function MediaEngine({
   }, [volume]);
 
   // 6. Polling Local Current Time for Smooth UI Progress Bar
+  const lastReportedTimeRef = useRef(0);
   useEffect(() => {
     const timePollInterval = setInterval(() => {
       if (!isPlaying) return;
@@ -188,7 +190,13 @@ export default function MediaEngine({
         try {
           const curTime = ytPlayerRef.current.getCurrentTime();
           const dur = ytPlayerRef.current.getDuration();
-          if (typeof curTime === 'number' && !isNaN(curTime) && onTimeUpdate) {
+          if (
+            typeof curTime === 'number' &&
+            !isNaN(curTime) &&
+            Math.abs(curTime - lastReportedTimeRef.current) >= 0.4 &&
+            onTimeUpdate
+          ) {
+            lastReportedTimeRef.current = curTime;
             onTimeUpdate(curTime);
           }
           if (typeof dur === 'number' && dur > 0 && onDurationChange) {
@@ -196,7 +204,11 @@ export default function MediaEngine({
           }
         } catch (e) {}
       } else if (audioRef.current) {
-        if (onTimeUpdate) onTimeUpdate(audioRef.current.currentTime);
+        const curTime = audioRef.current.currentTime || 0;
+        if (Math.abs(curTime - lastReportedTimeRef.current) >= 0.4 && onTimeUpdate) {
+          lastReportedTimeRef.current = curTime;
+          onTimeUpdate(curTime);
+        }
         if (audioRef.current.duration && onDurationChange) {
           onDurationChange(audioRef.current.duration);
         }

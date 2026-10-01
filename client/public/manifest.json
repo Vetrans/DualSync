@@ -1,0 +1,17 @@
+{
+  "name": "DualSync - Synchronized Listening",
+  "short_name": "DualSync",
+  "description": "Real-time synchronized music & podcast rooms with WebRTC voice call",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#121212",
+  "theme_color": "#1DB954",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231DB954'><circle cx='12' cy='12' r='10'/><path fill='%23121212' d='M8 7.5v9l8-4.5z'/></svg>",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

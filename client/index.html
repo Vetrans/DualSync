@@ -3,15 +3,66 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231DB954'><circle cx='12' cy='12' r='10'/><path fill='%23121212' d='M8 7.5v9l8-4.5z'/></svg>" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%231DB954'><circle cx='12' cy='12' r='10'/><path fill='%23121212' d='M8 7.5v9l8-4.5z'/></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#121212" />
-    <meta name="description" content="DualSync - Real-time synchronized music & podcast rooms with WebRTC voice call" />
-    <title>DualSync - Synchronized Listening</title>
+    <meta name="color-scheme" content="dark" />
+    
+    <!-- SEO Primary Meta Tags -->
+    <title>DualSync - Real-Time Synchronized Music & Podcast Rooms</title>
+    <meta name="title" content="DualSync - Real-Time Synchronized Music & Podcast Rooms" />
+    <meta name="description" content="Listen to YouTube, Spotify, and podcasts with friends in locked real-time synchronization. Features high-definition WebRTC voice chat and shared queues across all devices." />
+    <meta name="keywords" content="music sync, watch together, listen together, synchronous audio, synchronized podcast, spotify sync, youtube sync, webrtc voice chat, co-listening rooms" />
+    <meta name="author" content="DualSync" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://dualsync.onrender.com/" />
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://dualsync.onrender.com/" />
+    <meta property="og:title" content="DualSync - Real-Time Synchronized Music & Podcast Rooms" />
+    <meta property="og:description" content="Co-listen in perfect synchronization. YouTube, Spotify, and audio streams with WebRTC voice call and interactive queue management." />
+    <meta property="og:image" content="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&h=630&q=80" />
+    <meta property="og:site_name" content="DualSync" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:url" content="https://dualsync.onrender.com/" />
+    <meta property="twitter:title" content="DualSync - Real-Time Synchronized Music & Podcast Rooms" />
+    <meta property="twitter:description" content="Co-listen in perfect synchronization with your friends. Features low-latency WebRTC voice chat and synchronized queue." />
+    <meta property="twitter:image" content="https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=1200&h=630&q=80" />
+
+    <!-- Mobile App Configuration -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="DualSync" />
+
+    <!-- Preconnect Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- JSON-LD Structured Data for Search Engines -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "DualSync",
+      "url": "https://dualsync.onrender.com/",
+      "description": "Real-time synchronized music and podcast co-listening web application with WebRTC voice chat.",
+      "applicationCategory": "MultimediaApplication",
+      "operatingSystem": "All",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
   </head>
-  <body class="bg-[#121212] text-white selection:bg-[#1DB954]/30 selection:text-white overflow-hidden select-none font-sans antialiased">
+  <body class="bg-[#121212] text-white selection:bg-[#1DB954]/30 selection:text-white font-sans antialiased min-h-screen">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
     <!-- Preload YouTube and Spotify Iframe APIs -->

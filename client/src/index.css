@@ -7,12 +7,14 @@
     --color-ambient: #5a0d1d;
   }
 
+  html {
+    color-scheme: dark;
+  }
+
   body {
     background-color: #121212;
     color: #ffffff;
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    user-select: none;
-    -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;
   }
 }
@@ -76,4 +78,21 @@ input[type="range"]:hover::-webkit-slider-thumb {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Safe area insets for mobile devices */
+.safe-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.safe-pt {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+/* Hide scrollbar when desired while preserving scrollability */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

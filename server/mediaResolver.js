@@ -1,5 +1,29 @@
 import axios from 'axios';
 
+// In-memory resolution cache: key (lowercase URL/query) -> { track, cachedAt }
+const mediaResolutionCache = new Map();
+const CACHE_TTL_MS = 1000 * 60 * 60; // 1 hour TTL
+const MAX_CACHE_ENTRIES = 500;
+
+function getCachedMedia(key) {
+  const entry = mediaResolutionCache.get(key.toLowerCase());
+  if (entry && Date.now() - entry.cachedAt < CACHE_TTL_MS) {
+    return { ...entry.track };
+  }
+  return null;
+}
+
+function setCachedMedia(key, track) {
+  if (mediaResolutionCache.size >= MAX_CACHE_ENTRIES) {
+    const firstKey = mediaResolutionCache.keys().next().value;
+    mediaResolutionCache.delete(firstKey);
+  }
+  mediaResolutionCache.set(key.toLowerCase(), {
+    track: { ...track },
+    cachedAt: Date.now(),
+  });
+}
+
 /**
  * Extracts YouTube Video ID from various URL formats
  */
@@ -230,36 +254,50 @@ export async function resolveMediaUrl(rawUrl, addedBy = 'Anonymous') {
     throw new Error('Please provide a valid media URL or search title');
   }
 
+  // Check cache for instant sub-millisecond retrieval
+  const cached = getCachedMedia(input);
+  if (cached) {
+    return {
+      ...cached,
+      id: `${cached.type || 'track'}_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+      addedBy,
+      addedAt: Date.now(),
+    };
+  }
+
+  let resolvedTrack = null;
+
   // 1. YouTube Link (watch?v=, youtu.be, shorts)
   const ytId = extractYouTubeId(input);
   if (ytId) {
+    const wideThumb = `https://i.ytimg.com/vi/${ytId}/mqdefault.jpg`;
     try {
       const oembedRes = await axios.get(
         `https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${ytId}&format=json`,
         { timeout: 5000 }
       );
       const data = oembedRes.data;
-      return {
+      resolvedTrack = {
         id: `yt_${ytId}_${Date.now()}`,
         type: 'youtube',
         videoId: ytId,
         url: input,
         title: data.title || 'YouTube Audio',
         artist: data.author_name || 'YouTube Creator',
-        cover: data.thumbnail_url || `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
+        cover: wideThumb,
         duration: 0,
         addedBy,
         addedAt: Date.now(),
       };
     } catch (err) {
-      return {
+      resolvedTrack = {
         id: `yt_${ytId}_${Date.now()}`,
         type: 'youtube',
         videoId: ytId,
         url: input,
         title: `YouTube Track (${ytId})`,
         artist: 'YouTube',
-        cover: `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`,
+        cover: wideThumb,
         duration: 0,
         addedBy,
         addedAt: Date.now(),
@@ -268,15 +306,15 @@ export async function resolveMediaUrl(rawUrl, addedBy = 'Anonymous') {
   }
 
   // 2. Spotify Link (track, episode, show, album, playlist)
-  if (isSpotifyUrl(input)) {
-    return await resolveSpotifyUrl(input, addedBy);
+  if (!resolvedTrack && isSpotifyUrl(input)) {
+    resolvedTrack = await resolveSpotifyUrl(input, addedBy);
   }
 
   // 3. Direct Audio File (MP3, M4A, AAC, etc.)
-  if (isAudioUrl(input)) {
+  if (!resolvedTrack && isAudioUrl(input)) {
     const filename = input.split('/').pop().split('?')[0];
     const cleanTitle = decodeURIComponent(filename).replace(/\.[^/.]+$/, '');
-    return {
+    resolvedTrack = {
       id: `audio_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
       type: 'audio',
       audioSrc: input,
@@ -291,31 +329,37 @@ export async function resolveMediaUrl(rawUrl, addedBy = 'Anonymous') {
   }
 
   // 4. Special Query Handling: "I Hear You" Podcast / Show
-  // If the user searches for "I Hear You" (podcast, show, or title)
-  if (/i\s*hear\s*you/i.test(input)) {
+  if (!resolvedTrack && /i\s*hear\s*you/i.test(input)) {
     console.log('[MediaResolver] Detected search for "I Hear You" podcast, resolving official Spotify show...');
-    return await resolveSpotifyUrl('https://open.spotify.com/show/1uYUZxdR4sSTXJ6SmSRook', addedBy);
+    resolvedTrack = await resolveSpotifyUrl('https://open.spotify.com/show/1uYUZxdR4sSTXJ6SmSRook', addedBy);
   }
 
   // 5. Default: Genuine YouTube Search for Song/Video Title
-  try {
-    const ytMatch = await searchYouTubeVideo(input);
-    if (ytMatch && ytMatch.videoId) {
-      return {
-        id: `yt_${ytMatch.videoId}_${Date.now()}`,
-        type: 'youtube',
-        videoId: ytMatch.videoId,
-        url: `https://www.youtube.com/watch?v=${ytMatch.videoId}`,
-        title: ytMatch.title,
-        artist: ytMatch.artist,
-        cover: ytMatch.cover,
-        duration: ytMatch.duration || 0,
-        addedBy,
-        addedAt: Date.now(),
-      };
+  if (!resolvedTrack) {
+    try {
+      const ytMatch = await searchYouTubeVideo(input);
+      if (ytMatch && ytMatch.videoId) {
+        resolvedTrack = {
+          id: `yt_${ytMatch.videoId}_${Date.now()}`,
+          type: 'youtube',
+          videoId: ytMatch.videoId,
+          url: `https://www.youtube.com/watch?v=${ytMatch.videoId}`,
+          title: ytMatch.title,
+          artist: ytMatch.artist,
+          cover: ytMatch.cover || `https://i.ytimg.com/vi/${ytMatch.videoId}/mqdefault.jpg`,
+          duration: ytMatch.duration || 0,
+          addedBy,
+          addedAt: Date.now(),
+        };
+      }
+    } catch (searchErr) {
+      console.warn('[MediaResolver] YouTube search fallback failed:', searchErr.message);
     }
-  } catch (searchErr) {
-    console.warn('[MediaResolver] YouTube search fallback failed:', searchErr.message);
+  }
+
+  if (resolvedTrack) {
+    setCachedMedia(input, resolvedTrack);
+    return resolvedTrack;
   }
 
   throw new Error('Could not find media for this link or title. Please paste a valid YouTube, Spotify, or audio link.');
