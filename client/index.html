@@ -16,6 +16,13 @@
     <script type="module" src="/src/main.jsx"></script>
     <!-- Preload YouTube and Spotify Iframe APIs -->
     <script src="https://www.youtube.com/iframe_api" async></script>
+    <script>
+      window.SpotifyIframeApi = null;
+      window.onSpotifyIframeApiReady = function(IFrameAPI) {
+        window.SpotifyIframeApi = IFrameAPI;
+        window.dispatchEvent(new CustomEvent('spotify-iframe-api-ready', { detail: IFrameAPI }));
+      };
+    </script>
     <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
   </body>
 </html>

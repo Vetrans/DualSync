@@ -301,6 +301,17 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('queue_reorder', ({ roomId, queue }) => {
+    if (!canAccessRoom(user.username, roomId)) return;
+    const updatedState = roomsManager.reorderQueue(roomId, queue, user.username);
+    if (updatedState) {
+      io.to(roomId).emit('room_queue_sync', {
+        queue: updatedState.queue,
+        currentTrack: updatedState.currentTrack,
+      });
+    }
+  });
+
   socket.on('queue_next', ({ roomId }) => {
     if (!canAccessRoom(user.username, roomId)) return;
     const updatedState = roomsManager.playNext(roomId, user.username);

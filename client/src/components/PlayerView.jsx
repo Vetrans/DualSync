@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import PlayerControls from './PlayerControls';
 import MediaEngine from './MediaEngine';
+import SpotifyEmbedPlayer from './SpotifyEmbedPlayer';
 import QueueDrawer from './QueueDrawer';
 import ChatDrawer from './ChatDrawer';
 import AdminAuditModal from './AdminAuditModal';
@@ -179,7 +180,16 @@ export default function PlayerView({
     });
   };
 
-  // 8. Play specific track immediately
+  // 8. Reorder queue
+  const handleReorderQueue = (newQueue) => {
+    setQueue(newQueue);
+    socket?.emit('queue_reorder', {
+      roomId: room.id,
+      queue: newQueue,
+    });
+  };
+
+  // 9. Play specific track immediately
   const handlePlayTrackNow = (track) => {
     socket?.emit('playback_action', {
       roomId: room.id,
@@ -292,18 +302,34 @@ export default function PlayerView({
         <div className="flex flex-col items-center max-w-md sm:max-w-lg w-full text-center">
           {/* Centered Album Cover / Spotify Embed Player / Dynamic Empty State */}
           <div className="relative group w-full max-w-sm sm:max-w-md rounded-2xl overflow-hidden shadow-2xl shadow-black/80 border border-white/10 transition-transform duration-500 hover:scale-[1.01] bg-neutral-900 flex items-center justify-center">
-            {currentTrack?.type === 'spotify' && currentTrack?.embedUrl ? (
+            {currentTrack?.type === 'spotify' ? (
               <div className="w-full h-80 sm:h-96 p-2 flex flex-col justify-center items-center bg-black/50 backdrop-blur-md">
-                <iframe
+                <SpotifyEmbedPlayer
                   key={currentTrack.id}
-                  src={currentTrack.embedUrl}
-                  width="100%"
-                  height="100%"
-                  frameBorder="0"
-                  allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-                  loading="lazy"
-                  className="rounded-xl w-full h-full shadow-lg"
-                  title={currentTrack.title}
+                  track={currentTrack}
+                  isPlaying={isPlaying}
+                  currentTime={currentTime}
+                  onTimeUpdate={(t) => setCurrentTime(t)}
+                  onDurationChange={(d) => setDuration(d)}
+                  onPlaybackToggle={(playing, time) => {
+                    setIsPlaying(playing);
+                    socket?.emit('playback_action', {
+                      roomId: room.id,
+                      action: playing ? 'PLAY' : 'PAUSE',
+                      currentTime: time,
+                      isPlaying: playing,
+                    });
+                  }}
+                  onSeekChange={(time) => {
+                    setCurrentTime(time);
+                    socket?.emit('playback_action', {
+                      roomId: room.id,
+                      action: 'SEEK',
+                      currentTime: time,
+                      isPlaying,
+                    });
+                  }}
+                  onTrackEnded={handleNextTrack}
                 />
               </div>
             ) : currentTrack?.cover ? (
@@ -417,6 +443,7 @@ export default function PlayerView({
         onAddMedia={handleAddMedia}
         onRemoveTrack={handleRemoveTrack}
         onPlayTrackNow={handlePlayTrackNow}
+        onReorderQueue={handleReorderQueue}
       />
 
       {/* Slide-out Chat Drawer */}

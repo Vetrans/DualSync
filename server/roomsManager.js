@@ -231,6 +231,18 @@ class RoomsManager {
     return this.getRoomState(roomId);
   }
 
+  reorderQueue(roomId, newQueue, username) {
+    const room = this.rooms.get(roomId);
+    if (!room) return null;
+
+    if (Array.isArray(newQueue)) {
+      room.queue = newQueue;
+      auditLogger.log('QUEUE_REORDER', username, { roomId, queueLength: newQueue.length });
+    }
+
+    return this.getRoomState(roomId);
+  }
+
   playNext(roomId, username) {
     const room = this.rooms.get(roomId);
     if (!room) return null;

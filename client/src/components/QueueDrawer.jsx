@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, Play, Music, Disc } from 'lucide-react';
+import { X, Plus, Trash2, Play, Music, Disc, GripVertical, ArrowUp, ArrowDown } from 'lucide-react';
 
 export default function QueueDrawer({
   isOpen,
@@ -9,10 +9,13 @@ export default function QueueDrawer({
   onAddMedia,
   onRemoveTrack,
   onPlayTrackNow,
+  onReorderQueue,
 }) {
   const [urlInput, setUrlInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
 
   if (!isOpen) return null;
 
@@ -31,6 +34,67 @@ export default function QueueDrawer({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDragStart = (e, index) => {
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDragOver = (e, index) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragLeave = (e, index) => {
+    if (dragOverIndex === index) {
+      setDragOverIndex(null);
+    }
+  };
+
+  const handleDrop = (e, targetIndex) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    const updatedQueue = [...queue];
+    const [movedItem] = updatedQueue.splice(draggedIndex, 1);
+    updatedQueue.splice(targetIndex, 0, movedItem);
+
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+
+    if (onReorderQueue) {
+      onReorderQueue(updatedQueue);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleMoveUp = (index) => {
+    if (index <= 0) return;
+    const updatedQueue = [...queue];
+    const [item] = updatedQueue.splice(index, 1);
+    updatedQueue.splice(index - 1, 0, item);
+    if (onReorderQueue) onReorderQueue(updatedQueue);
+  };
+
+  const handleMoveDown = (index) => {
+    if (index >= queue.length - 1) return;
+    const updatedQueue = [...queue];
+    const [item] = updatedQueue.splice(index, 1);
+    updatedQueue.splice(index + 1, 0, item);
+    if (onReorderQueue) onReorderQueue(updatedQueue);
   };
 
   return (
@@ -135,16 +199,34 @@ export default function QueueDrawer({
               {queue.map((track, index) => (
                 <div
                   key={track.id}
-                  className="group p-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/5 flex items-center justify-between gap-3 transition"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={(e) => handleDragLeave(e, index)}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
+                  className={`group p-2.5 rounded-xl border flex items-center justify-between gap-3 transition cursor-grab active:cursor-grabbing ${
+                    draggedIndex === index
+                      ? 'opacity-40 scale-[0.98] border-dashed border-[#1DB954] bg-[#1DB954]/5'
+                      : dragOverIndex === index
+                      ? 'border-[#1DB954] bg-[#1DB954]/15 shadow-lg scale-[1.01]'
+                      : 'bg-white/5 hover:bg-white/10 border-white/5'
+                  }`}
                 >
-                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    <span className="text-xs font-bold text-neutral-400 w-4 text-center">
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div
+                      className="p-1 rounded text-neutral-500 group-hover:text-neutral-300 hover:text-white transition cursor-grab active:cursor-grabbing"
+                      title="Drag to reorder"
+                    >
+                      <GripVertical className="w-4 h-4 shrink-0" />
+                    </div>
+                    <span className="text-xs font-bold text-neutral-400 w-4 text-center shrink-0">
                       {index + 1}
                     </span>
                     <img
                       src={track.cover}
                       alt="Cover"
-                      className="w-10 h-10 rounded-md object-cover shrink-0"
+                      className="w-10 h-10 rounded-md object-cover shrink-0 pointer-events-none"
                     />
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-semibold text-white truncate group-hover:text-[#1DB954] transition">
@@ -156,15 +238,49 @@ export default function QueueDrawer({
                   </div>
 
                   <div className="flex items-center gap-1">
+                    {index > 0 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveUp(index);
+                        }}
+                        className="p-1 rounded hover:bg-white/10 text-neutral-400 hover:text-white transition cursor-pointer hidden group-hover:block"
+                        title="Move Up"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    {index < queue.length - 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMoveDown(index);
+                        }}
+                        className="p-1 rounded hover:bg-white/10 text-neutral-400 hover:text-white transition cursor-pointer hidden group-hover:block"
+                        title="Move Down"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button
-                      onClick={() => onPlayTrackNow(track)}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onPlayTrackNow(track);
+                      }}
                       className="p-1.5 rounded-lg hover:bg-white/10 text-neutral-400 hover:text-white transition cursor-pointer"
                       title="Play Now"
                     >
                       <Play className="w-3.5 h-3.5 fill-current" />
                     </button>
                     <button
-                      onClick={() => onRemoveTrack(track.id)}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveTrack(track.id);
+                      }}
                       className="p-1.5 rounded-lg hover:bg-red-500/20 text-neutral-400 hover:text-red-400 transition cursor-pointer"
                       title="Remove from Queue"
                     >
