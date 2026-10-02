@@ -462,7 +462,7 @@ export default function PlayerView({
         </div>
       </main>
 
-      {/* Hidden Synchronized Media Engine (YouTube Iframe & Audio) */}
+      {/* Synchronized Background Media Engine (YouTube, Direct Audio & MediaSession) */}
       <MediaEngine
         currentTrack={currentTrack}
         isPlaying={isPlaying}
@@ -471,6 +471,9 @@ export default function PlayerView({
         onTimeUpdate={(t) => setCurrentTime(t)}
         onDurationChange={(d) => setDuration(d)}
         onTrackEnded={handleNextTrack}
+        onPlayPause={handlePlayPause}
+        onSeek={handleSeek}
+        onPrevTrack={handlePrevTrack}
       />
 
       {/* Sticky Bottom Player Controls Bar */}

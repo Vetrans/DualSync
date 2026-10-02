@@ -84,6 +84,20 @@ export default function SpotifyEmbedPlayer({
 
           // Check if user toggled play/pause directly inside Spotify embed
           if (isEmbedPlaying !== isOurPlaying && now - lastCommandTimeRef.current > 1200) {
+            // Guard against background tab/window occlusion pauses:
+            // When user switches tab or maximizes another app (e.g. Antigravity), browser pauses iframe.
+            // If the document is hidden or window is not focused, and embed paused while room is playing,
+            // do NOT broadcast a pause to the room! Re-assert playback in background instead.
+            if ((document.hidden || !document.hasFocus()) && !isEmbedPlaying && isOurPlaying) {
+              console.log('[SpotifyEmbedPlayer] Suppressing background occlusion pause, resuming...');
+              setTimeout(() => {
+                if (isPlayingRef.current && controllerRef.current) {
+                  controllerRef.current.play();
+                }
+              }, 150);
+              return;
+            }
+
             lastCommandTimeRef.current = now;
             if (onPlaybackToggle) {
               onPlaybackToggle(isEmbedPlaying, posSec);
@@ -153,6 +167,29 @@ export default function SpotifyEmbedPlayer({
       controllerRef.current = null;
     };
   }, [spotifyUri]);
+
+  // Keep playback alive when user switches tab or minimizes/maximizes windows (e.g. Antigravity)
+  useEffect(() => {
+    const handleBackgroundWake = () => {
+      if (isPlayingRef.current && controllerRef.current) {
+        setTimeout(() => {
+          if (isPlayingRef.current && controllerRef.current) {
+            controllerRef.current.play();
+          }
+        }, 120);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleBackgroundWake);
+    window.addEventListener('blur', handleBackgroundWake);
+    window.addEventListener('focus', handleBackgroundWake);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleBackgroundWake);
+      window.removeEventListener('blur', handleBackgroundWake);
+      window.removeEventListener('focus', handleBackgroundWake);
+    };
+  }, []);
 
   // 2. Sync isPlaying -> Spotify Controller
   useEffect(() => {
