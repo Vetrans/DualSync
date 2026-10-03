@@ -7,6 +7,24 @@ import AdminAuditModal from './components/AdminAuditModal';
 import { getSocket, disconnectSocket } from './services/socket';
 import { InactivityTimer } from './services/inactivityTimer';
 
+// Helper: parse roomId from URL pathname, hash, or query param
+function getRoomIdFromLocation() {
+  if (typeof window === 'undefined') return null;
+  const pathMatch = window.location.pathname.match(/^\/(?:room|rooms)\/([a-zA-Z0-9_-]+)/i);
+  if (pathMatch) return pathMatch[1];
+
+  const hashMatch = window.location.hash.match(/^#\/?(?:room\/)?([a-zA-Z0-9_-]+)/i);
+  if (hashMatch && hashMatch[1] && !['login', 'rooms', ''].includes(hashMatch[1])) {
+    return hashMatch[1];
+  }
+
+  const searchParams = new URLSearchParams(window.location.search);
+  const paramRoom = searchParams.get('room');
+  if (paramRoom) return paramRoom;
+
+  return null;
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('dualsync_token') || '');
@@ -120,6 +138,12 @@ export default function App() {
     setCurrentUser(user);
     setToken(newToken);
     setIsInactivityModalOpen(false);
+
+    // If URL already points to a room, automatically join it upon login
+    const urlRoomId = getRoomIdFromLocation();
+    if (urlRoomId) {
+      handleSelectRoom(urlRoomId, false);
+    }
   };
 
   // 6. Handle Logout
@@ -140,24 +164,33 @@ export default function App() {
     setToken('');
     setActiveRoomId(null);
     setActiveRoomData(null);
+    window.history.pushState({}, '', '/');
     disconnectSocket();
     inactivityTimerRef.current?.stop();
   };
 
-  // 7. Select and Join Room
-  const handleSelectRoom = async (roomId) => {
+  // 7. Select and Join Room (with URL route synchronization)
+  const handleSelectRoom = async (roomId, updateHistory = true) => {
     try {
+      const curToken = token || localStorage.getItem('dualsync_token');
       const res = await fetch(`/api/rooms/${roomId}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${curToken}` },
       });
       const data = await res.json();
       if (!res.ok || !data.room) {
+        if (updateHistory) {
+          window.history.replaceState({}, '', '/');
+        }
         alert(data.error || 'Cannot enter this room');
         return;
       }
 
       setActiveRoomData(data.room);
       setActiveRoomId(roomId);
+
+      if (updateHistory) {
+        window.history.pushState({ roomId }, '', `/room/${roomId}`);
+      }
 
       // Join socket room
       socketRef.current?.emit('join_room', { roomId });
@@ -167,14 +200,46 @@ export default function App() {
   };
 
   // 8. Leave Room and return to RoomList
-  const handleLeaveRoom = () => {
+  const handleLeaveRoom = (updateHistory = true) => {
     if (activeRoomId) {
       socketRef.current?.emit('leave_room', { roomId: activeRoomId });
     }
     setActiveRoomId(null);
     setActiveRoomData(null);
+    if (updateHistory) {
+      window.history.pushState({}, '', '/');
+    }
     fetchRooms();
   };
+
+  // 9. Auto-restore room on page reload or direct URL visit
+  useEffect(() => {
+    if (currentUser && token && !activeRoomId) {
+      const urlRoomId = getRoomIdFromLocation();
+      if (urlRoomId) {
+        handleSelectRoom(urlRoomId, false);
+      }
+    }
+  }, [currentUser, token]);
+
+  // 10. Handle browser Back / Forward buttons (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      const targetRoomId = getRoomIdFromLocation();
+      if (targetRoomId) {
+        if (targetRoomId !== activeRoomId && currentUser && token) {
+          handleSelectRoom(targetRoomId, false);
+        }
+      } else {
+        if (activeRoomId) {
+          handleLeaveRoom(false);
+        }
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [activeRoomId, currentUser, token]);
 
   if (loading) {
     return (

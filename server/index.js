@@ -282,12 +282,24 @@ io.on('connection', (socket) => {
   // Queue Operations
   socket.on('queue_add', ({ roomId, track }) => {
     if (!canAccessRoom(user.username, roomId)) return;
+    const previousState = roomsManager.getRoomState(roomId);
     const updatedState = roomsManager.addToQueue(roomId, track, user.username);
     if (updatedState) {
       io.to(roomId).emit('room_queue_sync', {
         queue: updatedState.queue,
         currentTrack: updatedState.currentTrack,
       });
+
+      if (!previousState?.currentTrack && updatedState.currentTrack) {
+        io.to(roomId).emit('room_playback_sync', {
+          action: 'TRACK_CHANGE',
+          currentTrack: updatedState.currentTrack,
+          isPlaying: updatedState.isPlaying,
+          currentTime: updatedState.currentTime,
+          lastSyncTimestamp: updatedState.lastSyncTimestamp,
+          updatedBy: user.username,
+        });
+      }
     }
   });
 

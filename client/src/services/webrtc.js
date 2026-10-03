@@ -3,8 +3,29 @@ const ICE_SERVERS = {
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
     { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
   ],
+  iceCandidatePoolSize: 10,
 };
+
+/**
+ * Optimizes WebRTC Opus SDP for studio-grade audio:
+ * - stereo=1 & sprop-stereo=1 for full 2-channel audio
+ * - maxaveragebitrate=128000 for crystal-clear 128kbps audio shipping
+ * - usedtx=1 for network efficiency (silence suppression saves data & battery)
+ * - useinbandfec=1 for forward error correction against packet loss
+ */
+function optimizeOpusSdp(sdp) {
+  if (!sdp) return sdp;
+  return sdp.replace(/a=fmtp:(\d+) (.*)/g, (line, pt, params) => {
+    if (params.includes('minptime') || params.includes('useinbandfec')) {
+      return `a=fmtp:${pt} ${params};stereo=1;sprop-stereo=1;maxaveragebitrate=128000;usedtx=1;useinbandfec=1`;
+    }
+    return line;
+  });
+}
 
 export class WebRTCVoiceManager {
   constructor(socket, { onRemoteStream, onSpeakingChange, onError }) {
@@ -32,12 +53,16 @@ export class WebRTCVoiceManager {
     this.currentUser = user;
 
     try {
-      // 1. Request microphone access with echo cancellation & noise suppression
+      // 1. High-fidelity audio constraints: 48kHz, stereo-capable, ultra-low latency
       this.localStream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
+          channelCount: 2,
+          sampleRate: 48000,
+          sampleSize: 16,
+          latency: 0.01,
         },
         video: false,
       });
@@ -72,7 +97,17 @@ export class WebRTCVoiceManager {
     // Add local audio tracks to peer connection
     if (this.localStream) {
       this.localStream.getTracks().forEach((track) => {
-        pc.addTrack(track, this.localStream);
+        const sender = pc.addTrack(track, this.localStream);
+        // Optimize sender encoding parameters if supported
+        try {
+          const params = sender.getParameters();
+          if (params && params.encodings && params.encodings[0]) {
+            params.encodings[0].maxBitrate = 128000;
+            params.encodings[0].priority = 'high';
+            params.encodings[0].networkPriority = 'high';
+            sender.setParameters(params).catch(() => {});
+          }
+        } catch (e) {}
       });
     }
 
@@ -97,6 +132,17 @@ export class WebRTCVoiceManager {
       }
     };
 
+    // Auto-restart ICE on disconnection or packet loss
+    pc.oniceconnectionstatechange = () => {
+      console.log('[WebRTC] ICE connection state:', pc.iceConnectionState);
+      if (pc.iceConnectionState === 'failed') {
+        console.warn('[WebRTC] ICE connection failed, restarting ICE...');
+        try {
+          pc.restartIce();
+        } catch (e) {}
+      }
+    };
+
     pc.onconnectionstatechange = () => {
       console.log('[WebRTC] Connection state:', pc.connectionState);
     };
@@ -111,10 +157,12 @@ export class WebRTCVoiceManager {
       const pc = this.createPeerConnection(socketId);
       try {
         const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
+        const optimizedSdp = optimizeOpusSdp(offer.sdp);
+        const finalOffer = new RTCSessionDescription({ type: offer.type, sdp: optimizedSdp });
+        await pc.setLocalDescription(finalOffer);
         this.socket.emit('webrtc_offer', {
           toSocketId: socketId,
-          offer,
+          offer: finalOffer,
           fromUser: this.currentUser,
         });
       } catch (err) {
@@ -129,10 +177,12 @@ export class WebRTCVoiceManager {
       try {
         await pc.setRemoteDescription(new RTCSessionDescription(offer));
         const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
+        const optimizedSdp = optimizeOpusSdp(answer.sdp);
+        const finalAnswer = new RTCSessionDescription({ type: answer.type, sdp: optimizedSdp });
+        await pc.setLocalDescription(finalAnswer);
         this.socket.emit('webrtc_answer', {
           toSocketId: fromSocketId,
-          answer,
+          answer: finalAnswer,
         });
       } catch (err) {
         console.error('[WebRTC] Error handling offer:', err);

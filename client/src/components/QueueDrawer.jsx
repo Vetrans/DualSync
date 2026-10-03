@@ -14,6 +14,7 @@ export default function QueueDrawer({
   const [urlInput, setUrlInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
 
@@ -25,10 +26,19 @@ export default function QueueDrawer({
 
     setLoading(true);
     setError('');
+    setSuccessMsg('');
 
     try {
-      await onAddMedia(urlInput.trim());
+      const added = await onAddMedia(urlInput.trim());
+      if (added?.isPlaylist) {
+        setSuccessMsg(`Added ${added.count || added.tracks?.length || ''} tracks from "${added.title || 'Playlist'}"!`);
+      } else if (added?.title) {
+        setSuccessMsg(`Added "${added.title}" to queue!`);
+      } else {
+        setSuccessMsg('Added to queue!');
+      }
       setUrlInput('');
+      setTimeout(() => setSuccessMsg(''), 4000);
     } catch (err) {
       setError(err.message || 'Failed to resolve media URL');
     } finally {
@@ -159,6 +169,12 @@ export default function QueueDrawer({
         {error && (
           <div className="mt-2 text-xs text-red-400 bg-red-500/10 p-2 rounded-lg border border-red-500/20">
             {error}
+          </div>
+        )}
+
+        {successMsg && (
+          <div className="mt-2 text-xs text-[#1DB954] bg-[#1DB954]/10 p-2 rounded-lg border border-[#1DB954]/30 font-semibold animate-fade-in">
+            ✓ {successMsg}
           </div>
         )}
       </div>

@@ -198,20 +198,45 @@ class RoomsManager {
     return this.getRoomState(roomId);
   }
 
-  addToQueue(roomId, track, username) {
+  addToQueue(roomId, trackOrTracks, username) {
     const room = this.rooms.get(roomId);
     if (!room) return null;
 
-    // If no track is currently set, make this the current track immediately
+    const tracksToAdd = Array.isArray(trackOrTracks)
+      ? trackOrTracks
+      : trackOrTracks?.isPlaylist && Array.isArray(trackOrTracks.tracks)
+      ? trackOrTracks.tracks
+      : trackOrTracks
+      ? [trackOrTracks]
+      : [];
+
+    if (tracksToAdd.length === 0) return this.getRoomState(roomId);
+
+    let startIndex = 0;
+    // If no track is currently set, make the first track the current track immediately
     if (!room.currentTrack) {
-      room.currentTrack = track;
+      const firstTrack = tracksToAdd[0];
+      room.currentTrack = firstTrack;
       room.currentTime = 0;
       room.isPlaying = true;
       room.lastSyncTimestamp = Date.now();
-      auditLogger.log('PLAYBACK_PLAY', username, { roomId, trackTitle: track.title });
-    } else {
-      room.queue.push(track);
-      auditLogger.log('QUEUE_ADD', username, { roomId, trackTitle: track.title, url: track.url });
+      auditLogger.log('PLAYBACK_PLAY', username, { roomId, trackTitle: firstTrack.title });
+      startIndex = 1;
+    }
+
+    // Append remaining tracks to queue
+    for (let i = startIndex; i < tracksToAdd.length; i++) {
+      room.queue.push(tracksToAdd[i]);
+    }
+
+    if (tracksToAdd.length > 1) {
+      auditLogger.log('QUEUE_ADD_BATCH', username, {
+        roomId,
+        count: tracksToAdd.length,
+        playlistTitle: trackOrTracks.title || 'Playlist',
+      });
+    } else if (startIndex === 0 && tracksToAdd.length === 1) {
+      auditLogger.log('QUEUE_ADD', username, { roomId, trackTitle: tracksToAdd[0].title, url: tracksToAdd[0].url });
     }
 
     return this.getRoomState(roomId);

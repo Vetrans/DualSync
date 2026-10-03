@@ -121,12 +121,19 @@ export default function SpotifyEmbedPlayer({
           }
         });
 
-        // If currently playing, trigger playback on load
-        if (isPlayingRef.current) {
-          setTimeout(() => {
-            EmbedController.play();
-          }, 400);
-        }
+        // If currently playing or has initial time offset, seek and trigger playback on load
+        setTimeout(() => {
+          if (currentTime > 0) {
+            try {
+              EmbedController.seek(Math.floor(currentTime));
+            } catch (e) {}
+          }
+          if (isPlayingRef.current) {
+            try {
+              EmbedController.play();
+            } catch (e) {}
+          }
+        }, 400);
       };
 
       try {

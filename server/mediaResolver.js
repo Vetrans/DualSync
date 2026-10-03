@@ -35,6 +35,143 @@ export function extractYouTubeId(url) {
 }
 
 /**
+ * Extracts YouTube Playlist ID from URLs like:
+ * - https://www.youtube.com/playlist?list=PLeBPB00huOIqDuUV7QXDFzCjNiPdIns2i
+ * - https://youtube.com/playlist?list=...
+ */
+export function extractYouTubePlaylistId(url) {
+  if (!url || typeof url !== 'string') return null;
+  const match = url.match(/[?&]list=([a-zA-Z0-9_-]+)/i);
+  return match && match[1] && match[1] !== 'WL' && match[1] !== 'LL' ? match[1] : null;
+}
+
+/**
+ * Resolves all tracks from a YouTube Playlist.
+ * Handles both modern lockupViewModel and classic playlistVideoRenderer.
+ */
+export async function resolveYouTubePlaylist(playlistId, addedBy = 'Anonymous') {
+  try {
+    const res = await axios.get(`https://www.youtube.com/playlist?list=${playlistId}`, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'en-US,en;q=0.9',
+      },
+    });
+
+    const html = res.data;
+    const match = html.match(/var ytInitialData = ({.*?});<\/script>/) || html.match(/ytInitialData = ({.*?});<\/script>/);
+    if (!match) {
+      throw new Error('Could not parse YouTube playlist data');
+    }
+
+    const data = JSON.parse(match[1]);
+    const playlistTitle =
+      data.metadata?.playlistMetadataRenderer?.title ||
+      data.header?.pageHeaderRenderer?.content?.pageHeaderViewModel?.title?.dynamicTextViewModel?.text?.content ||
+      data.header?.playlistHeaderRenderer?.title?.simpleText ||
+      'YouTube Playlist';
+
+    const tracks = [];
+    const seenIds = new Set();
+
+    function scan(obj) {
+      if (!obj || typeof obj !== 'object') return;
+
+      // Modern format: lockupViewModel
+      if (obj.lockupViewModel) {
+        const l = obj.lockupViewModel;
+        const videoId = l.contentId || l.rendererContext?.commandContext?.onTap?.innertubeCommand?.watchEndpoint?.videoId;
+        if (videoId && typeof videoId === 'string' && videoId.length === 11 && !seenIds.has(videoId)) {
+          seenIds.add(videoId);
+          const title = l.metadata?.lockupMetadataViewModel?.title?.content || 'YouTube Track';
+
+          let artist = 'YouTube';
+          const rows = l.metadata?.lockupMetadataViewModel?.metadata?.contentMetadataViewModel?.metadataRows || [];
+          if (rows.length > 0 && rows[0]?.parts?.length > 0) {
+            artist = rows[0].parts[0]?.text?.content || artist;
+          }
+
+          let duration = 0;
+          const overlays = l.contentImage?.thumbnailViewModel?.overlays || [];
+          for (const ov of overlays) {
+            const badge = ov.thumbnailOverlayBadgeViewModel?.thumbnailBadges?.[0]?.thumbnailBadgeViewModel?.text;
+            if (badge) {
+              const parts = badge.split(':').map(Number);
+              if (parts.length === 2) duration = parts[0] * 60 + parts[1];
+              if (parts.length === 3) duration = parts[0] * 3600 + parts[1] * 60 + parts[2];
+              break;
+            }
+          }
+
+          const sources = l.contentImage?.thumbnailViewModel?.image?.sources || [];
+          const cover = sources.length > 0 ? sources[sources.length - 1].url : `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+
+          tracks.push({
+            id: `yt_${videoId}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            type: 'youtube',
+            videoId,
+            url: `https://www.youtube.com/watch?v=${videoId}`,
+            title,
+            artist,
+            cover,
+            duration,
+            addedBy,
+            addedAt: Date.now(),
+          });
+        }
+      }
+
+      // Classic format: playlistVideoRenderer
+      if (obj.playlistVideoRenderer) {
+        const v = obj.playlistVideoRenderer;
+        if (v.videoId && typeof v.videoId === 'string' && v.videoId.length === 11 && !seenIds.has(v.videoId)) {
+          seenIds.add(v.videoId);
+          const title = v.title?.runs?.map((r) => r.text).join('') || v.title?.simpleText || 'YouTube Track';
+          const artist = v.shortBylineText?.runs?.map((r) => r.text).join('') || 'YouTube';
+          const duration = parseInt(v.lengthSeconds || '0', 10);
+          const cover = v.thumbnail?.thumbnails?.slice(-1)[0]?.url || `https://i.ytimg.com/vi/${v.videoId}/mqdefault.jpg`;
+
+          tracks.push({
+            id: `yt_${v.videoId}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            type: 'youtube',
+            videoId: v.videoId,
+            url: `https://www.youtube.com/watch?v=${v.videoId}`,
+            title,
+            artist,
+            cover,
+            duration,
+            addedBy,
+            addedAt: Date.now(),
+          });
+        }
+      }
+
+      for (const key of Object.keys(obj)) {
+        scan(obj[key]);
+      }
+    }
+
+    scan(data);
+
+    if (tracks.length === 0) {
+      throw new Error('Playlist is empty or private');
+    }
+
+    return {
+      isPlaylist: true,
+      playlistId,
+      title: playlistTitle,
+      count: tracks.length,
+      tracks,
+    };
+  } catch (err) {
+    console.error('[resolveYouTubePlaylist] Error:', err.message);
+    throw new Error(`Failed to load playlist: ${err.message}`);
+  }
+}
+
+/**
  * Checks if URL is a Spotify track, episode, show, album, or playlist
  */
 export function isSpotifyUrl(url) {
@@ -136,6 +273,7 @@ export async function resolveSpotifyUrl(rawUrl, addedBy = 'Anonymous') {
   let cover = 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=600&q=80';
   let duration = 0;
   let spotifyUri = `spotify:${type}:${id}`;
+  let entity = null;
 
   try {
     const embedRes = await axios.get(`https://open.spotify.com/embed/${type}/${id}`, {
@@ -149,7 +287,7 @@ export async function resolveSpotifyUrl(rawUrl, addedBy = 'Anonymous') {
     const nextDataMatch = embedRes.data.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
     if (nextDataMatch) {
       const parsedData = JSON.parse(nextDataMatch[1]);
-      const entity = parsedData.props?.pageProps?.state?.data?.entity;
+      entity = parsedData.props?.pageProps?.state?.data?.entity;
       if (entity) {
         if (type === 'show') {
           title = entity.subtitle || entity.title || entity.name || 'Spotify Podcast Show';
@@ -191,18 +329,37 @@ export async function resolveSpotifyUrl(rawUrl, addedBy = 'Anonymous') {
   }
 
   // 1. Podcasts (Episodes and Shows)
-  // CRITICAL: NEVER match Spotify Originals / podcast episodes to random YouTube teasers!
-  // Return directly as native Spotify Player item so it plays authentically on both devices.
+  // CRITICAL: Resolve shows to their concrete episode URI so all participants
+  // share the identical episode playhead and enjoy 100% synchronized playback.
+  let resolvedType = type;
+  let resolvedId = id;
+  if (type === 'show') {
+    if (entity?.type === 'episode' && entity?.id) {
+      resolvedType = 'episode';
+      resolvedId = entity.id;
+    } else if (entity?.uri && entity.uri.includes('spotify:episode:')) {
+      const epMatch = entity.uri.match(/spotify:episode:([a-zA-Z0-9]+)/);
+      if (epMatch) {
+        resolvedType = 'episode';
+        resolvedId = epMatch[1];
+      }
+    }
+  }
+
+  const finalSpotifyUri = entity?.uri || `spotify:${resolvedType}:${resolvedId}`;
+  const finalEmbedUrl = `https://open.spotify.com/embed/${resolvedType}/${resolvedId}?utm_source=generator&theme=0`;
+  const finalCanonicalUrl = `https://open.spotify.com/${resolvedType}/${resolvedId}`;
+
   if (type === 'episode' || type === 'show') {
     return {
-      id: `sp_${type}_${id}_${Date.now()}`,
+      id: `sp_${resolvedType}_${resolvedId}_${Date.now()}`,
       type: 'spotify',
-      spotifyType: type,
-      spotifyId: id,
-      spotifyUri,
-      embedUrl,
-      url: canonicalUrl,
-      title: title || (type === 'show' ? 'I Hear You (Hindi Thriller Podcast)' : 'Podcast Episode'),
+      spotifyType: resolvedType,
+      spotifyId: resolvedId,
+      spotifyUri: finalSpotifyUri,
+      embedUrl: finalEmbedUrl,
+      url: finalCanonicalUrl,
+      title: title || 'I Hear You - Hindi Thriller Podcast',
       artist: artist || 'Spotify Studios',
       cover,
       duration,
@@ -246,7 +403,7 @@ export async function resolveSpotifyUrl(rawUrl, addedBy = 'Anonymous') {
 }
 
 /**
- * Resolves any media link or search query into a standardized Track object
+ * Resolves any media link or search query into a standardized Track or Playlist object
  */
 export async function resolveMediaUrl(rawUrl, addedBy = 'Anonymous') {
   const input = (rawUrl || '').trim();
@@ -257,12 +414,23 @@ export async function resolveMediaUrl(rawUrl, addedBy = 'Anonymous') {
   // Check cache for instant sub-millisecond retrieval
   const cached = getCachedMedia(input);
   if (cached) {
+    if (cached.isPlaylist) {
+      return { ...cached };
+    }
     return {
       ...cached,
       id: `${cached.type || 'track'}_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
       addedBy,
       addedAt: Date.now(),
     };
+  }
+
+  // 0. YouTube Playlist Link
+  const ytPlaylistId = extractYouTubePlaylistId(input);
+  if (ytPlaylistId && (input.includes('playlist') || !extractYouTubeId(input))) {
+    const playlistResult = await resolveYouTubePlaylist(ytPlaylistId, addedBy);
+    setCachedMedia(input, playlistResult);
+    return playlistResult;
   }
 
   let resolvedTrack = null;

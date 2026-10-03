@@ -171,6 +171,7 @@ export default function PlayerView({
       roomId: room.id,
       track: data.track,
     });
+    return data.track;
   };
 
   // 7. Remove track from queue
