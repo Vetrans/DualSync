@@ -18,6 +18,8 @@ export default function QueueDrawer({
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
 
+  if (!isOpen) return null;
+
   // Filter out the currently playing track so it does NOT appear in the upcoming queue list
   const isSameTrack = (t1, t2) => {
     if (!t1 || !t2) return false;
