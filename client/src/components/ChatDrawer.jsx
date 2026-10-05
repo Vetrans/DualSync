@@ -103,7 +103,7 @@ export default function ChatDrawer({
 
     const cursorPos = e.target.selectionStart;
     const textBeforeCursor = val.slice(0, cursorPos);
-    const lastAtMatch = textBeforeCursor.match(/@([a-zA-Z0-9_\s]{0,15})$/);
+    const lastAtMatch = textBeforeCursor.match(/@([a-zA-Z0-9_]{0,15})$/);
 
     if (lastAtMatch) {
       setMentionQuery(lastAtMatch[1]);
@@ -120,7 +120,7 @@ export default function ChatDrawer({
     const textBeforeCursor = inputText.slice(0, cursorPos);
     const textAfterCursor = inputText.slice(cursorPos);
 
-    const newBefore = textBeforeCursor.replace(/@([a-zA-Z0-9_\s]{0,15})$/, `@${name} `);
+    const newBefore = textBeforeCursor.replace(/@([a-zA-Z0-9_]{0,15})$/, `@${name} `);
     setInputText(newBefore + textAfterCursor);
     setMentionQuery(null);
     inputRef.current?.focus();
@@ -162,7 +162,7 @@ export default function ChatDrawer({
 
     // Detect mentioned names in text
     const mentioned = [];
-    const atMatches = inputText.matchAll(/@([a-zA-Z0-9_ -]+)/g);
+    const atMatches = inputText.matchAll(/@([a-zA-Z0-9_]+)/g);
     for (const match of atMatches) {
       mentioned.push(match[1].trim());
     }
@@ -250,7 +250,7 @@ export default function ChatDrawer({
   // Render message text with highlighted @mentions
   const renderMessageContent = (text, isMe) => {
     if (!text) return null;
-    const parts = text.split(/(@[a-zA-Z0-9_ -]+)/g);
+    const parts = text.split(/(@[a-zA-Z0-9_]+)/g);
 
     return parts.map((part, i) => {
       if (part.startsWith('@')) {
@@ -359,19 +359,12 @@ export default function ChatDrawer({
                 <div
                   key={msg.id}
                   id={`msg-${msg.id}`}
-                  className={`group relative flex gap-2.5 transition rounded-xl p-1.5 ${
+                  className={`group relative flex transition rounded-xl p-1.5 ${
                     isMentioningMe ? 'bg-amber-500/10 border border-amber-500/20' : 'hover:bg-white/[0.02]'
-                  } ${isMe ? 'flex-row-reverse' : 'flex-row'}`}
+                  } ${isMe ? 'justify-end' : 'justify-start'}`}
                 >
-                  {/* Sender Avatar */}
-                  <img
-                    src={msg.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'}
-                    alt={msg.sender}
-                    className="w-7 h-7 sm:w-8 sm:h-8 rounded-full object-cover shrink-0 border border-white/10 mt-1 shadow"
-                  />
-
                   {/* Message Bubble + Meta */}
-                  <div className={`max-w-[78%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                  <div className={`max-w-[85%] flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                     {/* Header info */}
                     <div className="flex items-center gap-1.5 mb-1 px-1">
                       <span className="text-[11px] font-bold text-neutral-300">
@@ -592,11 +585,9 @@ export default function ChatDrawer({
                   idx === selectedMentionIndex ? 'bg-[#1DB954]/20 border border-[#1DB954]/30' : 'hover:bg-white/5'
                 }`}
               >
-                <img
-                  src={user.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=100&q=80'}
-                  alt={user.displayName || user.username}
-                  className="w-5 h-5 rounded-full object-cover"
-                />
+                <div className="w-5 h-5 rounded-full bg-white/10 text-neutral-300 font-bold text-[10px] flex items-center justify-center shrink-0">
+                  @
+                </div>
                 <span className="text-xs font-semibold text-white">
                   {user.displayName || user.username}
                 </span>

@@ -154,7 +154,7 @@ export default function RoomList({ rooms, currentUser, onSelectRoom, onOpenAudit
             <Radio className="w-12 h-12 text-neutral-500 mx-auto mb-3" />
             <h3 className="text-lg font-bold text-white">No Accessible Rooms</h3>
             <p className="text-sm text-neutral-400 mt-1">
-              You do not have permission to view any room. Please contact Admin Rishi.
+              You do not have permission to view any room. Please contact an administrator.
             </p>
           </div>
         )}
