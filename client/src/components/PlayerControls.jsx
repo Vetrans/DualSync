@@ -212,12 +212,12 @@ export default function PlayerControls({
         {/* 2. Main Player Buttons & Desktop Timeline (Center) */}
         <div className="flex flex-col items-center shrink-0 sm:shrink sm:w-2/4 sm:max-w-xl">
           {/* Buttons Row: [Previous] [-10s] [Play/Pause] [+10s] [Next] */}
-          <div className="flex items-center gap-1 sm:gap-3 md:gap-5">
-            {/* Previous Track / Restart (hidden on very small phones) */}
+          <div className="flex items-center gap-1.5 sm:gap-3 md:gap-5">
+            {/* Previous Track / Restart */}
             <button
               type="button"
               onClick={onPrevTrack}
-              className="hidden xs:flex text-neutral-400 hover:text-white transition cursor-pointer p-2 hover:bg-white/5 rounded-full active:scale-95"
+              className="flex text-neutral-400 hover:text-white transition cursor-pointer p-1.5 sm:p-2 hover:bg-white/5 rounded-full active:scale-95"
               title="Previous Track / Restart"
               aria-label="Previous Track"
             >
@@ -228,7 +228,7 @@ export default function PlayerControls({
             <button
               type="button"
               onClick={() => handleSeekBy(-10)}
-              className="p-2 sm:p-2.5 rounded-full text-neutral-300 hover:text-white hover:bg-white/10 transition cursor-pointer active:scale-90 flex items-center justify-center group"
+              className="p-1.5 sm:p-2.5 rounded-full text-neutral-300 hover:text-white hover:bg-white/10 transition cursor-pointer active:scale-90 flex items-center justify-center group"
               title="Rewind 10 Seconds (Left Arrow)"
               aria-label="Rewind 10 seconds"
             >
@@ -239,7 +239,7 @@ export default function PlayerControls({
             <button
               type="button"
               onClick={onPlayPause}
-              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center transition shadow-lg shadow-white/10 cursor-pointer mx-1"
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-white hover:scale-105 active:scale-95 text-black flex items-center justify-center transition shadow-lg shadow-white/10 cursor-pointer mx-0.5 sm:mx-1"
               title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
               aria-label={isPlaying ? 'Pause' : 'Play'}
             >
@@ -254,18 +254,18 @@ export default function PlayerControls({
             <button
               type="button"
               onClick={() => handleSeekBy(10)}
-              className="p-2 sm:p-2.5 rounded-full text-neutral-300 hover:text-white hover:bg-white/10 transition cursor-pointer active:scale-90 flex items-center justify-center group"
+              className="p-1.5 sm:p-2.5 rounded-full text-neutral-300 hover:text-white hover:bg-white/10 transition cursor-pointer active:scale-90 flex items-center justify-center group"
               title="Forward 10 Seconds (Right Arrow)"
               aria-label="Forward 10 seconds"
             >
               <Forward10Icon className="w-4 h-4 sm:w-5 sm:h-5 group-hover:rotate-12 transition-transform" />
             </button>
 
-            {/* Next Track (hidden on very small phones) */}
+            {/* Next Track / Forward */}
             <button
               type="button"
               onClick={onNextTrack}
-              className="hidden xs:flex text-neutral-400 hover:text-white transition cursor-pointer p-2 hover:bg-white/5 rounded-full active:scale-95"
+              className="flex text-neutral-400 hover:text-white transition cursor-pointer p-1.5 sm:p-2 hover:bg-white/5 rounded-full active:scale-95"
               title="Next Track"
               aria-label="Next Track"
             >

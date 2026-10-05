@@ -115,6 +115,16 @@ class RoomsManager {
       liveCurrentTime = room.currentTime + elapsedSeconds;
     }
 
+    // Filter out the currently playing track from the queue
+    const filteredQueue = room.currentTrack
+      ? room.queue.filter(
+          (t) =>
+            t.id !== room.currentTrack.id &&
+            (!room.currentTrack.url || t.url !== room.currentTrack.url) &&
+            (!room.currentTrack.videoId || t.videoId !== room.currentTrack.videoId)
+        )
+      : room.queue;
+
     return {
       id: room.id,
       name: room.name,
@@ -124,7 +134,7 @@ class RoomsManager {
       isPlaying: room.isPlaying,
       currentTime: liveCurrentTime,
       lastSyncTimestamp: room.lastSyncTimestamp,
-      queue: room.queue,
+      queue: filteredQueue,
       chatMessages: room.chatMessages.slice(-150),
       activeUsers: Array.from(room.activeUsers.values()),
       voiceParticipants: Array.from(room.voiceParticipants.values()),
@@ -191,6 +201,13 @@ class RoomsManager {
       room.currentTime = 0;
       room.isPlaying = true;
       room.lastSyncTimestamp = now;
+      // Ensure the now-playing track does not remain in the queue
+      room.queue = room.queue.filter(
+        (t) =>
+          t.id !== track.id &&
+          (!track.url || t.url !== track.url) &&
+          (!track.videoId || t.videoId !== track.videoId)
+      );
       auditLogger.log('PLAYBACK_TRACK_CHANGE', username, {
         roomId,
         trackTitle: track.title,
@@ -255,9 +272,17 @@ class RoomsManager {
       startIndex = 1;
     }
 
-    // Append remaining tracks to queue
+    // Append remaining tracks to queue (excluding currently playing track)
     for (let i = startIndex; i < tracksToAdd.length; i++) {
-      room.queue.push(tracksToAdd[i]);
+      const t = tracksToAdd[i];
+      const isCur =
+        room.currentTrack &&
+        (t.id === room.currentTrack.id ||
+          (t.url && t.url === room.currentTrack.url) ||
+          (t.videoId && t.videoId === room.currentTrack.videoId));
+      if (!isCur) {
+        room.queue.push(t);
+      }
     }
 
     if (tracksToAdd.length > 1) {
@@ -309,6 +334,13 @@ class RoomsManager {
       room.currentTime = 0;
       room.isPlaying = true;
       room.lastSyncTimestamp = Date.now();
+      // Ensure any duplicate of nextTrack is removed from queue
+      room.queue = room.queue.filter(
+        (t) =>
+          t.id !== nextTrack.id &&
+          (!nextTrack.url || t.url !== nextTrack.url) &&
+          (!nextTrack.videoId || t.videoId !== nextTrack.videoId)
+      );
       auditLogger.log('QUEUE_AUTO_NEXT', username || 'System', {
         roomId,
         trackTitle: nextTrack.title,

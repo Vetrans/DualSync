@@ -18,7 +18,16 @@ export default function QueueDrawer({
   const [draggedIndex, setDraggedIndex] = useState(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
 
-  if (!isOpen) return null;
+  // Filter out the currently playing track so it does NOT appear in the upcoming queue list
+  const isSameTrack = (t1, t2) => {
+    if (!t1 || !t2) return false;
+    if (t1.id && t2.id && t1.id === t2.id) return true;
+    if (t1.url && t2.url && t1.url === t2.url) return true;
+    if (t1.videoId && t2.videoId && t1.videoId === t2.videoId) return true;
+    return false;
+  };
+
+  const upcomingQueue = (queue || []).filter((track) => !isSameTrack(track, currentTrack));
 
   const handleSubmit = async (e) => {
     if (e) e.preventDefault();
@@ -74,7 +83,7 @@ export default function QueueDrawer({
       return;
     }
 
-    const updatedQueue = [...queue];
+    const updatedQueue = [...upcomingQueue];
     const [movedItem] = updatedQueue.splice(draggedIndex, 1);
     updatedQueue.splice(targetIndex, 0, movedItem);
 
@@ -93,15 +102,15 @@ export default function QueueDrawer({
 
   const handleMoveUp = (index) => {
     if (index <= 0) return;
-    const updatedQueue = [...queue];
+    const updatedQueue = [...upcomingQueue];
     const [item] = updatedQueue.splice(index, 1);
     updatedQueue.splice(index - 1, 0, item);
     if (onReorderQueue) onReorderQueue(updatedQueue);
   };
 
   const handleMoveDown = (index) => {
-    if (index >= queue.length - 1) return;
-    const updatedQueue = [...queue];
+    if (index >= upcomingQueue.length - 1) return;
+    const updatedQueue = [...upcomingQueue];
     const [item] = updatedQueue.splice(index, 1);
     updatedQueue.splice(index + 1, 0, item);
     if (onReorderQueue) onReorderQueue(updatedQueue);
@@ -123,7 +132,7 @@ export default function QueueDrawer({
             <Disc className="w-5 h-5 text-[#1DB954]" />
             <h2 className="text-lg font-bold text-white">Queue & Playlist</h2>
             <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-neutral-300 font-semibold">
-              {queue.length}
+              {upcomingQueue.length}
             </span>
           </div>
           <button
@@ -208,10 +217,10 @@ export default function QueueDrawer({
         {/* Upcoming Tracks */}
         <div>
           <div className="text-[11px] font-bold uppercase tracking-wider text-neutral-400 mb-2">
-            Next in Queue ({queue.length})
+            Next in Queue ({upcomingQueue.length})
           </div>
 
-          {queue.length === 0 ? (
+          {upcomingQueue.length === 0 ? (
             <div className="p-6 text-center rounded-xl border border-dashed border-white/10 bg-white/[0.02]">
               <Music className="w-8 h-8 text-neutral-500 mx-auto mb-2" />
               <p className="text-xs text-neutral-400">Queue is empty</p>
@@ -221,7 +230,7 @@ export default function QueueDrawer({
             </div>
           ) : (
             <div className="space-y-2">
-              {queue.map((track, index) => (
+              {upcomingQueue.map((track, index) => (
                 <div
                   key={track.id}
                   draggable
