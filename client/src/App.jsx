@@ -109,6 +109,12 @@ export default function App() {
         handleInactivityTimeout();
       });
 
+      // Server notifies if 30-min guest session expires
+      socket.on('session_guest_timeout', (data) => {
+        alert(data?.message || 'Your 30-minute guest session has expired. Thank you for trying DualSync!');
+        handleLogout('guest_timeout');
+      });
+
       // Client-side 2-hour inactivity watcher
       inactivityTimerRef.current = new InactivityTimer({
         onTimeout: () => {
@@ -120,6 +126,7 @@ export default function App() {
       return () => {
         inactivityTimerRef.current?.stop();
         socket.off('session_inactivity_logout');
+        socket.off('session_guest_timeout');
       };
     } else {
       inactivityTimerRef.current?.stop();

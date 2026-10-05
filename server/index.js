@@ -5,10 +5,13 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { fileURLToPath } from 'url';
 
 import {
   login,
+  loginGuest,
+  getGuestStatus,
   logout,
   validateSession,
   touchSession,
@@ -28,13 +31,22 @@ const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS & JSON parsing
+// Ensure public uploads directory exists
+const uploadsDir = path.join(__dirname, 'public/uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Enable CORS, cookie-parser, & 10MB JSON parsing for media attachments
 app.use(cors({
   origin: true,
   credentials: true,
 }));
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
+
+// Serve uploaded chat attachments safely
+app.use('/uploads', express.static(uploadsDir));
 
 // Setup Socket.io
 const io = new Server(server, {
@@ -63,10 +75,10 @@ function getSessionFromReq(req) {
 }
 
 // ----------------------------------------------------
-// REST API ROUTES
+// REST API ENDPOINTS
 // ----------------------------------------------------
 
-// 1. User Login
+// 1. Member Login
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
@@ -78,6 +90,28 @@ app.post('/api/login', (req, res) => {
   }
 
   res.json(result);
+});
+
+// 1b. Guest Login (30-min auto-logout, max 5 capacity queue)
+app.post('/api/guest-login', (req, res) => {
+  const { nickname } = req.body;
+  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '127.0.0.1';
+  const userAgent = req.headers['user-agent'] || '';
+
+  const result = loginGuest(nickname, ip, userAgent);
+  if (!result.success) {
+    if (result.inQueue) {
+      return res.status(429).json(result);
+    }
+    return res.status(400).json(result);
+  }
+
+  res.json(result);
+});
+
+// 1c. Guest Capacity Status & Queue Wait Info
+app.get('/api/guest-status', (req, res) => {
+  res.json(getGuestStatus());
 });
 
 // 2. User Logout
@@ -98,6 +132,8 @@ app.get('/api/me', (req, res) => {
   res.json({
     user: session.user,
     lastActivity: session.lastActivity,
+    isGuest: !!session.isGuest,
+    expiresAt: session.expiresAt,
   });
 });
 
@@ -118,7 +154,7 @@ app.get('/api/rooms', (req, res) => {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
-  const rooms = roomsManager.getRoomsForUser(session.user.username);
+  const rooms = roomsManager.getRoomsForUser(session.user.username, session.user.role);
   res.json({ rooms });
 });
 
@@ -130,7 +166,7 @@ app.get('/api/rooms/:id', (req, res) => {
   }
 
   const roomId = req.params.id;
-  if (!canAccessRoom(session.user.username, roomId)) {
+  if (!canAccessRoom(session.user.username, roomId, session.user.role)) {
     auditLogger.log('UNAUTHORIZED_ACCESS_ATTEMPT', session.user.username, { roomId });
     return res.status(403).json({ error: 'You do not have permission to access this room' });
   }
@@ -163,7 +199,70 @@ app.post('/api/resolve-media', async (req, res) => {
   }
 });
 
-// 8. Admin Audit Logs (Strictly Rishi)
+// 8. Chat File / Media Attachment Upload
+app.post('/api/chat/upload', (req, res) => {
+  const session = getSessionFromReq(req);
+  if (!session) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const { filename, filetype, base64Data, roomId } = req.body;
+  if (!filename || !base64Data || !roomId) {
+    return res.status(400).json({ error: 'Missing file data or roomId' });
+  }
+
+  if (!canAccessRoom(session.user.username, roomId, session.user.role)) {
+    return res.status(403).json({ error: 'Access denied to this room' });
+  }
+
+  // Validate allowed MIME types
+  const allowedMimes = [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+    'audio/mpeg', 'audio/mp3', 'audio/ogg', 'audio/wav', 'audio/m4a',
+    'application/pdf', 'text/plain',
+  ];
+  if (!allowedMimes.includes(filetype)) {
+    return res.status(400).json({ error: 'Unsupported file type. Only images, audio, and documents allowed.' });
+  }
+
+  try {
+    const buffer = Buffer.from(base64Data, 'base64');
+    // Limit to 5MB
+    if (buffer.length > 5 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File size exceeds maximum limit of 5MB' });
+    }
+
+    const ext = path.extname(filename).toLowerCase().replace(/[^a-z0-9]/g, '') || 'bin';
+    const safeBase = path.basename(filename, path.extname(filename)).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 30);
+    const fileId = Date.now().toString(36) + '_' + crypto.randomBytes(4).toString('hex');
+    const finalFilename = `${fileId}_${safeBase}.${ext}`;
+    const filePath = path.join(uploadsDir, finalFilename);
+
+    fs.writeFileSync(filePath, buffer);
+
+    auditLogger.log('CHAT_FILE_UPLOADED', session.user.displayName || session.user.username, {
+      roomId,
+      filename: finalFilename,
+      size: buffer.length,
+      type: filetype,
+    });
+
+    res.json({
+      success: true,
+      file: {
+        url: `/uploads/${finalFilename}`,
+        name: `${safeBase}.${ext}`,
+        type: filetype,
+        size: buffer.length,
+      },
+    });
+  } catch (err) {
+    console.error('[ChatUpload] Error saving file:', err);
+    res.status(500).json({ error: 'Failed to process file upload' });
+  }
+});
+
+// 9. Admin Audit Logs (Strictly Rishi)
 app.get('/api/admin/audit-logs', (req, res) => {
   const session = getSessionFromReq(req);
   if (!session || session.user.role !== 'admin') {
@@ -175,7 +274,7 @@ app.get('/api/admin/audit-logs', (req, res) => {
   });
 });
 
-// 9. Admin Clear Logs
+// 10. Admin Clear Logs
 app.post('/api/admin/clear-logs', (req, res) => {
   const session = getSessionFromReq(req);
   if (!session || session.user.role !== 'admin') {
@@ -216,7 +315,7 @@ io.on('connection', (socket) => {
   }
   userSockets.get(token).add(socket.id);
 
-  // Keep session alive on any socket event
+  // Keep session alive on any socket event (for members)
   socket.use((packet, next) => {
     touchSession(token);
     next();
@@ -232,7 +331,7 @@ io.on('connection', (socket) => {
 
   // Join a Room
   socket.on('join_room', ({ roomId }) => {
-    if (!canAccessRoom(user.username, roomId)) {
+    if (!canAccessRoom(user.username, roomId, user.role)) {
       socket.emit('error_message', 'You do not have access to this room');
       return;
     }
@@ -240,7 +339,7 @@ io.on('connection', (socket) => {
     socket.join(roomId);
     socket.currentRoomId = roomId;
 
-    const roomState = roomsManager.userJoinRoom(roomId, user.username, socket.id);
+    const roomState = roomsManager.userJoinRoom(roomId, user.username, socket.id, user);
     io.to(roomId).emit('room_state_update', roomState);
   });
 
@@ -258,7 +357,7 @@ io.on('connection', (socket) => {
 
   // Playback Control (Play / Pause / Seek / Change Track)
   socket.on('playback_action', ({ roomId, action, currentTime, isPlaying, track }) => {
-    if (!canAccessRoom(user.username, roomId)) return;
+    if (!canAccessRoom(user.username, roomId, user.role)) return;
 
     const updatedState = roomsManager.updatePlayback(
       roomId,
@@ -267,23 +366,22 @@ io.on('connection', (socket) => {
     );
 
     if (updatedState) {
-      // Broadcast to EVERYONE in the room including sender for locked sync
       io.to(roomId).emit('room_playback_sync', {
         action,
         currentTrack: updatedState.currentTrack,
         isPlaying: updatedState.isPlaying,
         currentTime: updatedState.currentTime,
         lastSyncTimestamp: updatedState.lastSyncTimestamp,
-        updatedBy: user.username,
+        updatedBy: user.displayName || user.username,
       });
     }
   });
 
   // Queue Operations
   socket.on('queue_add', ({ roomId, track }) => {
-    if (!canAccessRoom(user.username, roomId)) return;
+    if (!canAccessRoom(user.username, roomId, user.role)) return;
     const previousState = roomsManager.getRoomState(roomId);
-    const updatedState = roomsManager.addToQueue(roomId, track, user.username);
+    const updatedState = roomsManager.addToQueue(roomId, track, user.displayName || user.username);
     if (updatedState) {
       io.to(roomId).emit('room_queue_sync', {
         queue: updatedState.queue,
@@ -297,15 +395,15 @@ io.on('connection', (socket) => {
           isPlaying: updatedState.isPlaying,
           currentTime: updatedState.currentTime,
           lastSyncTimestamp: updatedState.lastSyncTimestamp,
-          updatedBy: user.username,
+          updatedBy: user.displayName || user.username,
         });
       }
     }
   });
 
   socket.on('queue_remove', ({ roomId, trackId }) => {
-    if (!canAccessRoom(user.username, roomId)) return;
-    const updatedState = roomsManager.removeFromQueue(roomId, trackId, user.username);
+    if (!canAccessRoom(user.username, roomId, user.role)) return;
+    const updatedState = roomsManager.removeFromQueue(roomId, trackId, user.displayName || user.username);
     if (updatedState) {
       io.to(roomId).emit('room_queue_sync', {
         queue: updatedState.queue,
@@ -314,8 +412,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('queue_reorder', ({ roomId, queue }) => {
-    if (!canAccessRoom(user.username, roomId)) return;
-    const updatedState = roomsManager.reorderQueue(roomId, queue, user.username);
+    if (!canAccessRoom(user.username, roomId, user.role)) return;
+    const updatedState = roomsManager.reorderQueue(roomId, queue, user.displayName || user.username);
     if (updatedState) {
       io.to(roomId).emit('room_queue_sync', {
         queue: updatedState.queue,
@@ -325,8 +423,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('queue_next', ({ roomId }) => {
-    if (!canAccessRoom(user.username, roomId)) return;
-    const updatedState = roomsManager.playNext(roomId, user.username);
+    if (!canAccessRoom(user.username, roomId, user.role)) return;
+    const updatedState = roomsManager.playNext(roomId, user.displayName || user.username);
     if (updatedState) {
       io.to(roomId).emit('room_playback_sync', {
         action: 'TRACK_CHANGE',
@@ -334,7 +432,7 @@ io.on('connection', (socket) => {
         isPlaying: updatedState.isPlaying,
         currentTime: updatedState.currentTime,
         lastSyncTimestamp: updatedState.lastSyncTimestamp,
-        updatedBy: user.username,
+        updatedBy: user.displayName || user.username,
       });
       io.to(roomId).emit('room_queue_sync', {
         queue: updatedState.queue,
@@ -343,19 +441,39 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Chat Message
-  socket.on('send_chat', ({ roomId, text }) => {
-    if (!canAccessRoom(user.username, roomId)) return;
-    if (!text || !text.trim()) return;
+  // Chat Message (with rich mentions, replies, and attachments)
+  socket.on('send_chat', ({ roomId, text, replyTo, file, mentions }) => {
+    if (!canAccessRoom(user.username, roomId, user.role)) return;
+    if ((!text || !text.trim()) && !file) return;
 
     const message = roomsManager.addChatMessage(roomId, {
       sender: user.displayName || user.username,
       avatar: user.avatar,
       text,
+      replyTo,
+      file,
+      mentions,
     });
 
     if (message) {
       io.to(roomId).emit('new_chat_message', message);
+    }
+  });
+
+  // Chat Reaction (Emoji reactions)
+  socket.on('chat_reaction', ({ roomId, messageId, emoji }) => {
+    if (!canAccessRoom(user.username, roomId, user.role)) return;
+    if (!messageId || !emoji) return;
+
+    const updated = roomsManager.toggleChatMessageReaction(
+      roomId,
+      messageId,
+      emoji,
+      user.displayName || user.username
+    );
+
+    if (updated) {
+      io.to(roomId).emit('message_reaction_update', updated);
     }
   });
 
@@ -379,22 +497,39 @@ io.on('connection', (socket) => {
   });
 });
 
-// Start Inactivity Monitor (2 hours inactivity trigger)
-startSessionInactivityMonitor((token, username) => {
-  const socketSet = userSockets.get(token);
-  if (socketSet) {
-    for (const socketId of socketSet) {
-      const sock = io.sockets.sockets.get(socketId);
-      if (sock) {
-        sock.emit('session_inactivity_logout', {
-          reason: 'You have been logged out due to 2 hours of inactivity.',
-        });
-        sock.disconnect(true);
+// Start Inactivity Monitor (2 hours member inactivity & 30 min guest expiry)
+startSessionInactivityMonitor(
+  (token, username) => {
+    const socketSet = userSockets.get(token);
+    if (socketSet) {
+      for (const socketId of socketSet) {
+        const sock = io.sockets.sockets.get(socketId);
+        if (sock) {
+          sock.emit('session_inactivity_logout', {
+            reason: 'You have been logged out due to 2 hours of inactivity.',
+          });
+          sock.disconnect(true);
+        }
       }
+      userSockets.delete(token);
     }
-    userSockets.delete(token);
+  },
+  (token, guestUser) => {
+    const socketSet = userSockets.get(token);
+    if (socketSet) {
+      for (const socketId of socketSet) {
+        const sock = io.sockets.sockets.get(socketId);
+        if (sock) {
+          sock.emit('session_guest_timeout', {
+            reason: 'Your 30-minute guest session has completed. Thank you for exploring DualSync!',
+          });
+          sock.disconnect(true);
+        }
+      }
+      userSockets.delete(token);
+    }
   }
-});
+);
 
 // ----------------------------------------------------
 // PRODUCTION STATIC SERVING
@@ -413,8 +548,8 @@ if (fs.existsSync(clientDistPath)) {
 
 server.listen(PORT, () => {
   console.log(`===============================================`);
-  console.log(`DualSync Server listening on port ${PORT}`);
-  console.log(`Predefined accounts: Rishi (Admin), Shweta, Kavita, Archit`);
-  console.log(`2-Hour Inactivity Auto-Logout: ACTIVE`);
+  console.log(`DualSync Server running on port ${PORT}`);
+  console.log(`2-Hour Inactivity Monitor: ACTIVE`);
+  console.log(`30-Minute Guest Session Monitor: ACTIVE (Max 5)`);
   console.log(`===============================================`);
 });

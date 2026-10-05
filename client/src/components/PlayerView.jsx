@@ -88,16 +88,25 @@ export default function PlayerView({
       }
     };
 
+    // Live chat reaction update
+    const handleReactionUpdate = ({ messageId, reactions }) => {
+      setChatMessages((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, reactions } : m))
+      );
+    };
+
     socket.on('room_state_update', handleRoomState);
     socket.on('room_playback_sync', handlePlaybackSync);
     socket.on('room_queue_sync', handleQueueSync);
     socket.on('new_chat_message', handleNewChatMessage);
+    socket.on('message_reaction_update', handleReactionUpdate);
 
     return () => {
       socket.off('room_state_update', handleRoomState);
       socket.off('room_playback_sync', handlePlaybackSync);
       socket.off('room_queue_sync', handleQueueSync);
       socket.off('new_chat_message', handleNewChatMessage);
+      socket.off('message_reaction_update', handleReactionUpdate);
     };
   }, [socket, room.id, isChatOpen]);
 
@@ -202,11 +211,21 @@ export default function PlayerView({
     });
   };
 
-  // 10. Send Chat Message
-  const handleSendMessage = (text) => {
+  // 10. Send Chat Message (Rich Payload with replies, mentions, files)
+  const handleSendMessage = (payload) => {
+    const data = typeof payload === 'string' ? { text: payload } : payload;
     socket?.emit('send_chat', {
       roomId: room.id,
-      text,
+      ...data,
+    });
+  };
+
+  // 10b. Send Chat Reaction
+  const handleSendReaction = (messageId, emoji) => {
+    socket?.emit('chat_reaction', {
+      roomId: room.id,
+      messageId,
+      emoji,
     });
   };
 
@@ -517,7 +536,11 @@ export default function PlayerView({
         onClose={() => setIsChatOpen(false)}
         messages={chatMessages}
         onSendMessage={handleSendMessage}
+        onSendReaction={handleSendReaction}
         currentUser={currentUser}
+        activeUsers={activeUsers}
+        token={token}
+        roomId={room.id}
       />
 
       {/* Admin Audit Modal (Rishi only) */}
