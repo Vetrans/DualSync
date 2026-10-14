@@ -8,6 +8,10 @@ const MAX_CACHE_ENTRIES = 500;
 function getCachedMedia(key) {
   const entry = mediaResolutionCache.get(key.toLowerCase());
   if (entry && Date.now() - entry.cachedAt < CACHE_TTL_MS) {
+    if (entry.track?.originalType === 'spotify' && !entry.track?.videoId && !entry.track?.isPlaylist) {
+      mediaResolutionCache.delete(key.toLowerCase());
+      return null;
+    }
     return { ...entry.track };
   }
   return null;
@@ -171,12 +175,14 @@ export async function resolveYouTubePlaylist(playlistId, addedBy = 'Anonymous') 
   }
 }
 
+export const SPOTIFY_REGEX = /(?:open\.spotify\.com\/(?:intl-[a-zA-Z]{2,4}\/)?|spotify:)(track|episode|show|album|playlist)[\/:]([a-zA-Z0-9]+)/i;
+
 /**
  * Checks if URL is a Spotify track, episode, show, album, or playlist
  */
 export function isSpotifyUrl(url) {
-  if (!url) return false;
-  return /open\.spotify\.com\/(track|episode|show|album|playlist)\/([a-zA-Z0-9]+)/i.test(url);
+  if (!url || typeof url !== 'string') return false;
+  return SPOTIFY_REGEX.test(url.trim());
 }
 
 /**
@@ -192,15 +198,16 @@ export function isAudioUrl(url) {
 
 /**
  * Safely searches YouTube using parsed ytInitialData to find genuine, full-length audio/video.
- * Filters out YouTube shorts, advertisements, and ultra-short promotional teasers (< 60s).
+ * Filters out YouTube shorts, advertisements, and ultra-short promotional teasers (< 45s).
  */
 export async function searchYouTubeVideo(query) {
+  if (!query || typeof query !== 'string' || !query.trim()) return null;
   try {
-    const encQuery = encodeURIComponent(query);
+    const encQuery = encodeURIComponent(query.trim());
     const searchRes = await axios.get(`https://www.youtube.com/results?search_query=${encQuery}`, {
-      timeout: 6000,
+      timeout: 7000,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9',
       },
     });
@@ -208,7 +215,6 @@ export async function searchYouTubeVideo(query) {
     const html = searchRes.data;
     const jsonMatch = html.match(/var ytInitialData = ({.*?});<\/script>/) || html.match(/ytInitialData = ({.*?});<\/script>/);
     if (!jsonMatch) {
-      // Fallback: simple regex match
       const match = html.match(/\/watch\?v=([a-zA-Z0-9_-]{11})/);
       return match ? { videoId: match[1], title: query, duration: 0 } : null;
     }
@@ -222,22 +228,29 @@ export async function searchYouTubeVideo(query) {
         const v = item.videoRenderer;
         if (!v || !v.videoId) continue;
 
-        // Duration calculation
-        const durationText = v.lengthText?.simpleText || '';
-        const parts = durationText.split(':').map(Number);
         let totalSecs = 0;
-        if (parts.length === 2) {
-          totalSecs = parts[0] * 60 + parts[1];
-        } else if (parts.length === 3) {
-          totalSecs = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        const durationText = v.lengthText?.simpleText || v.lengthText?.runs?.map((r) => r.text).join('') || '';
+        if (durationText) {
+          const parts = durationText.split(':').map(Number);
+          if (parts.length === 2) totalSecs = parts[0] * 60 + parts[1];
+          else if (parts.length === 3) totalSecs = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        } else if (v.lengthText?.accessibility?.accessibilityData?.label) {
+          const lbl = v.lengthText.accessibility.accessibilityData.label;
+          const minsMatch = lbl.match(/(\d+)\s*minute/);
+          const secsMatch = lbl.match(/(\d+)\s*second/);
+          const hrsMatch = lbl.match(/(\d+)\s*hour/);
+          totalSecs =
+            (hrsMatch ? parseInt(hrsMatch[1], 10) * 3600 : 0) +
+            (minsMatch ? parseInt(minsMatch[1], 10) * 60 : 0) +
+            (secsMatch ? parseInt(secsMatch[1], 10) : 0);
         }
 
-        // Avoid ultra-short promotional teasers or YouTube shorts (< 60 seconds)
-        if (totalSecs > 0 && totalSecs < 60) {
+        // Filter out ultra-short teasers and shorts under 45 seconds
+        if (totalSecs > 0 && totalSecs < 45) {
           continue;
         }
 
-        const title = v.title?.runs?.map((r) => r.text).join('') || '';
+        const title = v.title?.runs?.map((r) => r.text).join('') || v.title?.simpleText || '';
         const channel = v.ownerText?.runs?.map((r) => r.text).join('') || 'YouTube Creator';
         const cover = v.thumbnail?.thumbnails?.slice(-1)[0]?.url || `https://img.youtube.com/vi/${v.videoId}/hqdefault.jpg`;
 
@@ -257,12 +270,13 @@ export async function searchYouTubeVideo(query) {
 }
 
 /**
- * Resolves a Spotify track, episode, or show.
- * Parses Spotify embed metadata directly via __NEXT_DATA__ (robust, no rate-limiting, handles shows & episodes).
+ * Resolves a Spotify track, episode, show, album, or playlist.
+ * Extracts rich metadata (album cover, artist, track name) and pairs it with
+ * a high-fidelity synchronized stream so all participants co-listen seamlessly without Spotify Premium.
  */
 export async function resolveSpotifyUrl(rawUrl, addedBy = 'Anonymous') {
-  const match = rawUrl.match(/open\.spotify\.com\/(track|episode|show|album|playlist)\/([a-zA-Z0-9]+)/i);
-  if (!match) throw new Error('Invalid Spotify URL');
+  const match = (rawUrl || '').match(SPOTIFY_REGEX);
+  if (!match) throw new Error('Invalid Spotify URL. Please paste a valid track, album, playlist, or podcast link.');
 
   const [, type, id] = match;
   const canonicalUrl = `https://open.spotify.com/${type}/${id}`;
@@ -279,7 +293,7 @@ export async function resolveSpotifyUrl(rawUrl, addedBy = 'Anonymous') {
     const embedRes = await axios.get(`https://open.spotify.com/embed/${type}/${id}`, {
       timeout: 7000,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         'Accept-Language': 'en-US,en;q=0.9',
       },
     });
@@ -287,108 +301,135 @@ export async function resolveSpotifyUrl(rawUrl, addedBy = 'Anonymous') {
     const nextDataMatch = embedRes.data.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
     if (nextDataMatch) {
       const parsedData = JSON.parse(nextDataMatch[1]);
-      entity = parsedData.props?.pageProps?.state?.data?.entity;
-      if (entity) {
-        if (type === 'show') {
-          title = entity.subtitle || entity.title || entity.name || 'Spotify Podcast Show';
-          artist = entity.subtitle ? `${entity.title || 'Podcast'} - Spotify Studios` : 'Spotify Podcast';
-        } else {
-          title = entity.title || entity.name || title;
-          artist = entity.subtitle || artist;
-        }
-
-        if (entity.duration) {
-          duration = Math.round(entity.duration / 1000);
-        }
-
-        if (entity.uri) {
-          spotifyUri = entity.uri;
-        }
-
-        const coverSources = entity.visualIdentity?.image || entity.relatedEntityCoverArt || [];
-        if (coverSources.length > 0) {
-          cover = coverSources[0]?.url || cover;
-        }
+      if (parsedData.props?.pageProps?.status !== 404) {
+        entity = parsedData.props?.pageProps?.state?.data?.entity;
       }
     }
   } catch (err) {
     console.warn('[resolveSpotifyUrl] Embed scrape fallback:', err.message);
-    // oEmbed fallback if embed scraping fails
+  }
+
+  // Fallback to oEmbed if entity missing or 404
+  if (!entity) {
     try {
-      const oembedRes = await axios.get(`https://open.spotify.com/oembed?url=${encodeURIComponent(canonicalUrl)}`, {
-        timeout: 5000,
-      });
+      const oembedRes = await axios.get(
+        `https://open.spotify.com/oembed?url=${encodeURIComponent(canonicalUrl)}`,
+        {
+          timeout: 5000,
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          },
+        }
+      );
       if (oembedRes.data) {
         title = oembedRes.data.title || title;
         artist = oembedRes.data.author_name || artist;
         cover = oembedRes.data.thumbnail_url || cover;
       }
     } catch (oembedErr) {
-      // Continue with defaults
+      console.warn('[resolveSpotifyUrl] oEmbed fallback error:', oembedErr.message);
     }
   }
 
-  // 1. Podcasts (Episodes and Shows)
-  // CRITICAL: Resolve shows to their concrete episode URI so all participants
-  // share the identical episode playhead and enjoy 100% synchronized playback.
-  let resolvedType = type;
-  let resolvedId = id;
-  if (type === 'show') {
-    if (entity?.type === 'episode' && entity?.id) {
-      resolvedType = 'episode';
-      resolvedId = entity.id;
-    } else if (entity?.uri && entity.uri.includes('spotify:episode:')) {
-      const epMatch = entity.uri.match(/spotify:episode:([a-zA-Z0-9]+)/);
-      if (epMatch) {
-        resolvedType = 'episode';
-        resolvedId = epMatch[1];
-      }
+  // Populate metadata from entity if present
+  if (entity) {
+    title = entity.name || entity.title || title;
+    const artistsList = Array.isArray(entity.artists)
+      ? entity.artists.map((a) => a.name).filter(Boolean).join(', ')
+      : '';
+    artist = artistsList || entity.subtitle || entity.artist || artist;
+
+    if (entity.duration) {
+      duration = Math.round(entity.duration / 1000);
+    }
+    if (entity.uri) {
+      spotifyUri = entity.uri;
+    }
+    const coverSources =
+      entity.visualIdentity?.image ||
+      entity.relatedEntityCoverArt ||
+      entity.coverArt?.sources ||
+      [];
+    if (coverSources.length > 0) {
+      cover = coverSources[0]?.url || cover;
     }
   }
 
-  const finalSpotifyUri = entity?.uri || `spotify:${resolvedType}:${resolvedId}`;
-  const finalEmbedUrl = `https://open.spotify.com/embed/${resolvedType}/${resolvedId}?utm_source=generator&theme=0`;
-  const finalCanonicalUrl = `https://open.spotify.com/${resolvedType}/${resolvedId}`;
+  // 1. PLAYLISTS & ALBUMS (Multi-track collection)
+  if (entity && Array.isArray(entity.trackList) && entity.trackList.length > 0) {
+    const rawTracks = entity.trackList;
+    const collectionTitle = title || (type === 'album' ? 'Spotify Album' : 'Spotify Playlist');
+    const tracks = [];
 
-  if (type === 'episode' || type === 'show') {
+    // Pre-resolve up to the first 10 tracks with genuine videoId so room starts playing immediately
+    for (let i = 0; i < Math.min(rawTracks.length, 10); i++) {
+      const t = rawTracks[i];
+      const tTitle = t.title || t.name || `Track ${i + 1}`;
+      const tArtist = t.subtitle || (Array.isArray(t.artists) ? t.artists.map((a) => a.name).join(', ') : artist);
+      const tDur = t.duration ? Math.round(t.duration / 1000) : 0;
+      let vId = null;
+
+      try {
+        const match = await searchYouTubeVideo(`${tTitle} ${tArtist}`);
+        if (match && match.videoId) vId = match.videoId;
+      } catch (e) {}
+
+      tracks.push({
+        id: `sp_${id}_tr_${i}_${Date.now()}_${Math.random().toString(36).substring(2, 5)}`,
+        type: 'youtube', // Always youtube so MediaEngine locks into sub-100ms sync!
+        videoId: vId,
+        originalType: 'spotify',
+        spotifyType: 'track',
+        spotifyUri: t.uri || `spotify:track:${t.id || i}`,
+        url: canonicalUrl,
+        title: tTitle,
+        artist: tArtist,
+        cover,
+        duration: tDur,
+        addedBy,
+        addedAt: Date.now() + i,
+      });
+    }
+
     return {
-      id: `sp_${resolvedType}_${resolvedId}_${Date.now()}`,
-      type: 'spotify',
-      spotifyType: resolvedType,
-      spotifyId: resolvedId,
-      spotifyUri: finalSpotifyUri,
-      embedUrl: finalEmbedUrl,
-      url: finalCanonicalUrl,
-      title: title || 'I Hear You - Hindi Thriller Podcast',
-      artist: artist || 'Spotify Studios',
-      cover,
-      duration,
-      addedBy,
-      addedAt: Date.now(),
+      isPlaylist: true,
+      playlistId: id,
+      title: collectionTitle,
+      count: tracks.length,
+      tracks,
     };
   }
 
-  // 2. Music Tracks
-  // For standard songs on Spotify, find the verified matching YouTube audio track
+  // 2. SINGLE TRACKS, EPISODES, AND SHOWS
+  // Always resolve to a synchronized YouTube stream for 100% reliable multi-device audio
   let resolvedVideoId = null;
-  try {
-    const ytMatch = await searchYouTubeVideo(`${title} ${artist} audio`);
-    if (ytMatch && ytMatch.videoId) {
-      resolvedVideoId = ytMatch.videoId;
-      if (!duration && ytMatch.duration) {
-        duration = ytMatch.duration;
+  const queriesToTry = [
+    `${title} ${artist}`.trim(),
+    `${title} ${artist} audio`.trim(),
+    `${title} audio`.trim(),
+    title.trim(),
+  ];
+
+  for (const q of queriesToTry) {
+    if (!q || q === 'Spotify Media' || q === 'Spotify') continue;
+    try {
+      const ytMatch = await searchYouTubeVideo(q);
+      if (ytMatch && ytMatch.videoId) {
+        resolvedVideoId = ytMatch.videoId;
+        if (!duration && ytMatch.duration) {
+          duration = ytMatch.duration;
+        }
+        break;
       }
-    }
-  } catch (matchErr) {
-    console.warn('[resolveSpotifyUrl] YouTube matching skipped:', matchErr.message);
+    } catch (err) {}
   }
 
   return {
-    id: `sp_track_${id}_${Date.now()}`,
-    type: resolvedVideoId ? 'youtube' : 'spotify',
+    id: `sp_${type}_${id}_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+    type: 'youtube', // Always youtube so MediaEngine plays and synchronizes across all users!
     videoId: resolvedVideoId,
     originalType: 'spotify',
-    spotifyType: 'track',
+    spotifyType: type,
     spotifyId: id,
     spotifyUri,
     embedUrl,

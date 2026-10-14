@@ -248,7 +248,9 @@ export default function PlayerView({
     return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
   }, []);
 
-  const isVideoOrYouTube = currentTrack?.type === 'youtube' || !!currentTrack?.videoId;
+  const isVideoOrYouTube =
+    (currentTrack?.type === 'youtube' && !currentTrack?.originalType) ||
+    (!!currentTrack?.videoId && !currentTrack?.originalType);
 
   return (
     <div
@@ -354,7 +356,7 @@ export default function PlayerView({
                   : 'aspect-square max-w-[240px] sm:max-w-[320px] md:max-w-[360px] max-h-[34vh] sm:max-h-[42vh]'
               }`}
             >
-              {currentTrack?.type === 'spotify' ? (
+              {currentTrack?.type === 'spotify' && !currentTrack?.videoId ? (
                 <div className="w-full h-full p-2 flex flex-col justify-center items-center bg-black/50">
                   <SpotifyEmbedPlayer
                     key={currentTrack.id}

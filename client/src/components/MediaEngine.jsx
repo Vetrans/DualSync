@@ -163,8 +163,8 @@ export default function MediaEngine({
       return;
     }
 
-    if (currentTrack.type === 'spotify') {
-      // Pause YouTube and HTML5 audio so only authentic Spotify podcast plays
+    if (currentTrack.type === 'spotify' && !currentTrack.videoId && !currentTrack.audioSrc) {
+      // Pause YouTube and HTML5 audio only if track has no videoId stream
       if (ytPlayerRef.current?.pauseVideo) ytPlayerRef.current.pauseVideo();
       if (audioRef.current) audioRef.current.pause();
       return;

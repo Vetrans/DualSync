@@ -21,7 +21,7 @@ import {
 } from './auth.js';
 import { roomsManager } from './roomsManager.js';
 import { auditLogger } from './auditLogger.js';
-import { resolveMediaUrl } from './mediaResolver.js';
+import { resolveMediaUrl, searchYouTubeVideo } from './mediaResolver.js';
 import { setupWebRTCSignaling } from './webrtcSignaling.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -356,8 +356,21 @@ io.on('connection', (socket) => {
   });
 
   // Playback Control (Play / Pause / Seek / Change Track)
-  socket.on('playback_action', ({ roomId, action, currentTime, isPlaying, track }) => {
+  socket.on('playback_action', async ({ roomId, action, currentTime, isPlaying, track }) => {
     if (!canAccessRoom(user.username, roomId, user.role)) return;
+
+    if (track && !track.videoId && track.title) {
+      try {
+        const query = `${track.title} ${track.artist || ''}`.trim();
+        const ytMatch = await searchYouTubeVideo(query);
+        if (ytMatch && ytMatch.videoId) {
+          track.videoId = ytMatch.videoId;
+          if (!track.duration && ytMatch.duration) {
+            track.duration = ytMatch.duration;
+          }
+        }
+      } catch (e) {}
+    }
 
     const updatedState = roomsManager.updatePlayback(
       roomId,
@@ -422,8 +435,26 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('queue_next', ({ roomId }) => {
+  socket.on('queue_next', async ({ roomId }) => {
     if (!canAccessRoom(user.username, roomId, user.role)) return;
+
+    const roomState = roomsManager.getRoomState(roomId);
+    if (roomState && roomState.queue && roomState.queue.length > 0) {
+      const nextInQueue = roomState.queue[0];
+      if (nextInQueue && !nextInQueue.videoId && nextInQueue.title) {
+        try {
+          const query = `${nextInQueue.title} ${nextInQueue.artist || ''}`.trim();
+          const ytMatch = await searchYouTubeVideo(query);
+          if (ytMatch && ytMatch.videoId) {
+            nextInQueue.videoId = ytMatch.videoId;
+            if (!nextInQueue.duration && ytMatch.duration) {
+              nextInQueue.duration = ytMatch.duration;
+            }
+          }
+        } catch (e) {}
+      }
+    }
+
     const updatedState = roomsManager.playNext(roomId, user.displayName || user.username);
     if (updatedState) {
       io.to(roomId).emit('room_playback_sync', {
